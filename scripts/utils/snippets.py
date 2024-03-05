@@ -3,8 +3,8 @@ from transformers import pipeline
 
 
 class SnippetExtractorQA:
-    model: str = "bigwiz83/sapbert-from-pubmedbert-squad2"
-    tokenizer: str = "bigwiz83/sapbert-from-pubmedbert-squad2"
+    model: str
+    tokenizer: str
 
     def __init__(self, model, tokenizer):
         self.qa_pipeline = pipeline(

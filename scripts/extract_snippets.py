@@ -4,8 +4,8 @@ from utils.snippets import SnippetExtractorQA
 
 model = "deutsche-telekom/bert-multi-english-german-squad2"
 tokenizer = "deutsche-telekom/bert-multi-english-german-squad2"
-# model = "bigwiz83/sapbert-from-pubmedbert-squad2"
-# tokenizer = "bigwiz83/sapbert-from-pubmedbert-squad2"
+model = "bigwiz83/sapbert-from-pubmedbert-squad2"
+tokenizer = "bigwiz83/sapbert-from-pubmedbert-squad2"
 
 extractorQA = SnippetExtractorQA(model, tokenizer)
 
