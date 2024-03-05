@@ -1,14 +1,14 @@
 from loguru import logger
-from utils.snippets import SnippetExtractorQA
+from utils.snippets import SnippetExtractorQA, SnippetExtractorGPT
 
 
-model = "deutsche-telekom/bert-multi-english-german-squad2"
-tokenizer = "deutsche-telekom/bert-multi-english-german-squad2"
+# model = "deutsche-telekom/bert-multi-english-german-squad2"
+# tokenizer = "deutsche-telekom/bert-multi-english-german-squad2"
 model = "bigwiz83/sapbert-from-pubmedbert-squad2"
 tokenizer = "bigwiz83/sapbert-from-pubmedbert-squad2"
 
 extractorQA = SnippetExtractorQA(model, tokenizer)
-
+extractorGPT = SnippetExtractorGPT()
 
 question = (
     "What is the mechanism by which HIV-1-encoded Vif protein allows virus replication?"
@@ -23,3 +23,11 @@ result = extractorQA.extract(question, title, abstract)
 logger.info(result[0])
 logger.info("")
 logger.info(result[1])
+logger.info("")
+
+result = extractorGPT.extract(question, title, abstract)
+
+logger.info(result.title_sentences)
+logger.info("")
+logger.info(result.abstract_sentences)
+logger.info("")

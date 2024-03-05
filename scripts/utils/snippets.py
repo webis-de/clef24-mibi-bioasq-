@@ -1,5 +1,22 @@
-from .prompts import *
+import os
+
+from dotenv import load_dotenv
+import instructor
+from openai import OpenAI
+from pydantic import BaseModel, Field
 from transformers import pipeline
+from typing import List
+
+from .prompts import *
+
+
+try:
+    assert load_dotenv()
+except AssertionError:
+    print("Not using .env file and assuming env variables are already set.")
+
+openai_key = os.environ.get("OPENAI_API_KEY")
+client = instructor.patch(OpenAI(api_key=openai_key))
 
 
 class SnippetExtractorQA:
@@ -23,3 +40,49 @@ class SnippetExtractorQA:
         snippets_abstract = self.qa_pipeline(question, abstract)
         snippets_title = self.qa_pipeline(question, title)
         return snippets_title, snippets_abstract
+
+
+class Snippets(BaseModel):
+    title_sentences: List = Field(
+        ...,
+        description="ONLY sentences or phrases from title that directly answer the given question, or empty list if no answer present",
+    )
+    abstract_sentences: List = Field(
+        ...,
+        description="ONLY sentences or phrases from abstract that directly answer the question, or empty list if no answer present",
+    )
+    score: float = Field(
+        ..., description="how confident are you: score between 0 and 1"
+    )
+    chain_of_thought: str = Field(
+        ...,
+        description="Think step by step to make a good decision. Are there extracted sentences that directly answer the question?",
+    )
+
+
+class SnippetExtractorGPT:
+
+    def extract(self, question: str, title: str, abstract: str) -> Snippets:
+        submission = SNIPPET_PROMPT.format(
+            question=question, title=title, abstract=abstract
+        )
+        resp = client.chat.completions.create(
+            model="gpt-3.5-turbo-0613",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a world class system to extract relevant sentences from titles and abstracts answering questions",
+                },
+                {
+                    "role": "user",
+                    "content": "Extract from the title and abstract ONLY sentences of phrases that directly answer the question",
+                },
+                {
+                    "role": "user",
+                    "content": submission,
+                },
+            ],
+            temperature=0,
+            response_model=Snippets,
+        )
+        return resp
