@@ -1,0 +1,26 @@
+[project]
+name = "mibi-at-bioasq"
+authors = [
+    {name = "Jan Heinrich Reimer", email = "heinrich.reimer@uni-jena.de"},
+    {name = "Alexander Bondarenko", email = "alexander.bondarenko@uni-jena.de"},
+    {name = "Adrian Viehweger", email = "Adrian.Viehweger@medizin.uni-leipzig.de"},
+    {name = "Matthias Hagen", email = "matthias.hagen@uni-jena.de"},
+]
+description = "MiBi at BioASQ 2024"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "instructor=^0.4.5",
+    "jupyter~=1.0",
+    "openai=^1.3.6",
+    "pandas~=2.0",
+    "pydantic=^2.5.2",
+    "tqdm~=4.64",
+]
