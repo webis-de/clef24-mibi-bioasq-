@@ -3,8 +3,11 @@ from pydantic import BaseModel, Field
 from transformers import pipeline
 from typing import List
 
-from .client import client
+from .config import client, load_toml_params
 from .prompts import *
+
+
+params = load_toml_params("config.toml")
 
 
 class SnippetExtractorQA:
@@ -55,7 +58,7 @@ class SnippetExtractorGPT:
             question=question, title=title, abstract=abstract
         )
         resp = client.chat.completions.create(
-            model="gpt-3.5-turbo-0613",
+            model=params["generation"]["model"],
             messages=[
                 {
                     "role": "system",
