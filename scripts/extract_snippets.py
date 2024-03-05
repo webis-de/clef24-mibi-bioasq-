@@ -1,5 +1,5 @@
 from loguru import logger
-from utils.snippets import SnippetExtractorQA, SnippetExtractorGPT
+from utils.snippets import SnippetExtractorQA, SnippetExtractorGPT, sent_tokenize
 
 
 # model = "deutsche-telekom/bert-multi-english-german-squad2"
@@ -25,9 +25,12 @@ logger.info("")
 logger.info(result[1])
 logger.info("")
 
-result = extractorGPT.extract(question, title, abstract)
+# result = extractorGPT.extract(question, title, abstract)
 
-logger.info(result.title_sentences)
-logger.info("")
-logger.info(result.abstract_sentences)
-logger.info("")
+# logger.info(result.title_sentences)
+# logger.info("")
+# logger.info(result.abstract_sentences)
+# logger.info("")
+
+sent_abstract = sent_tokenize(abstract)
+logger.info(sent_abstract)

@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 import instructor
+import nltk
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from transformers import pipeline
@@ -86,3 +87,7 @@ class SnippetExtractorGPT:
             response_model=Snippets,
         )
         return resp
+
+
+def sent_tokenize(text: str):
+    return nltk.sent_tokenize(text)
