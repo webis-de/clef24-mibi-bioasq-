@@ -25,12 +25,12 @@ logger.info("")
 logger.info(abstract_spans)
 logger.info("")
 
-# result = extractorGPT.extract(question, title, abstract)
+result = extractorGPT.extract(question, title, abstract)
 
-# logger.info(result.title_sentences)
-# logger.info("")
-# logger.info(result.abstract_sentences)
-# logger.info("")
+logger.info(result.title_sentences)
+logger.info("")
+logger.info(result.abstract_sentences)
+logger.info("")
 
 sent_abstract = sent_tokenize(abstract)
 
