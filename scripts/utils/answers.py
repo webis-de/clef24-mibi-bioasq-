@@ -45,103 +45,102 @@ class IdealAnswer(BaseModel):
     )
 
 
-def response_exact_answer(query: str, q_type: str, text_chunks: str):
+class Answer:
+    def response_exact_answer(query: str, q_type: str, text_chunks: str):
 
-    # answer_type_dict = {
-    #     "yesno": "only yes or no",
-    #     "list": "a python list of lists with entities",
-    #     "factoid": "a very short fact only a single entity included in a Python list with one element",
-    #     "summary": "a summary of the retrieved context in 2 or 3 sentences included in a Python list with one element"
-    # }
+        # answer_type_dict = {
+        #     "yesno": "only yes or no",
+        #     "list": "a python list of lists with entities",
+        #     "factoid": "a very short fact only a single entity included in a Python list with one element",
+        #     "summary": "a summary of the retrieved context in 2 or 3 sentences included in a Python list with one element"
+        # }
 
-    response_model_dict = {
-        "yesno": YesNoExact,
-        "list": ListExact,
-        "factoid": FactoidExact,
-        "summary": Summary,
-    }
+        response_model_dict = {
+            "yesno": YesNoExact,
+            "list": ListExact,
+            "factoid": FactoidExact,
+            "summary": Summary,
+        }
 
-    response_model = response_model_dict[q_type]
+        response_model = response_model_dict[q_type]
 
-    # answer_type = answer_type_dict[q_type]
+        # answer_type = answer_type_dict[q_type]
 
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a medical doctor answering real-world medical entrance exam questions.",
-        },
-        {
-            "role": "system",
-            "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
-        },
-        {
-            "role": "system",
-            "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
-        },
-        {"role": "system", "content": f"Context: {text_chunks}"},
-        # {"role": "system", 'content': f'Please write the answer as {answer_type}'},
-        {"role": "user", "content": f"Question: {query}"},
-    ]
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a medical doctor answering real-world medical entrance exam questions.",
+            },
+            {
+                "role": "system",
+                "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
+            },
+            {
+                "role": "system",
+                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
+            },
+            {"role": "system", "content": f"Context: {text_chunks}"},
+            # {"role": "system", 'content': f'Please write the answer as {answer_type}'},
+            {"role": "user", "content": f"Question: {query}"},
+        ]
 
-    response = client.chat.completions.create(
-        model=params["generation"]["model"],
-        temperature=0,
-        response_model=response_model,
-        messages=messages,
-        max_tokens=1000,
-    )
+        response = client.chat.completions.create(
+            model=params["generation"]["model"],
+            temperature=0,
+            response_model=response_model,
+            messages=messages,
+            max_tokens=1000,
+        )
 
-    if q_type == "summary":
-        return [" ".join(response.answer)]
-    else:
-        return response.answer
+        if q_type == "summary":
+            return [" ".join(response.answer)]
+        else:
+            return response.answer
 
+    def response_ideal_answer(query: str, q_type: str, text_chunks: str):
 
-def response_ideal_answer(query: str, q_type: str, text_chunks: str):
+        response_model: type[BaseModel]
+        if q_type == "summary":
+            response_model = Summary
+        else:
+            response_model = IdealAnswer
 
-    response_model: type[BaseModel]
-    if q_type == "summary":
-        response_model = Summary
-    else:
-        response_model = IdealAnswer
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a medical doctor answering real-world medical entrance exam questions.",
+            },
+            {
+                "role": "system",
+                "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
+            },
+            {
+                "role": "system",
+                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
+            },
+            {"role": "system", "content": f"Context: {text_chunks}"},
+            {"role": "user", "content": f"Question: {query}"},
+        ]
 
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a medical doctor answering real-world medical entrance exam questions.",
-        },
-        {
-            "role": "system",
-            "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
-        },
-        {
-            "role": "system",
-            "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
-        },
-        {"role": "system", "content": f"Context: {text_chunks}"},
-        {"role": "user", "content": f"Question: {query}"},
-    ]
+        response = client.chat.completions.create(
+            model=params["generation"]["model"],
+            temperature=0,
+            response_model=response_model,
+            messages=messages,
+            max_tokens=1000,
+        )
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo-0613",
-        temperature=0,
-        response_model=response_model,
-        messages=messages,
-        max_tokens=1000,
-    )
-
-    if q_type == "summary":
-        return [" ".join(response.answer)]
-    else:
-        return [response.answer]
+        if q_type == "summary":
+            return [" ".join(response.answer)]
+        else:
+            return [response.answer]
 
 
 with open("data/bioasq/questions_selected.json", "r") as f:
     data = json.load(f)
 
+
 # summary-type questions do not have exact_answer
-
-
 def print_exact_answer():
     for d in data:
         query = d["body"]
