@@ -6,7 +6,9 @@ from typing import List
 from .config import client, load_toml_params
 from .prompts import SNIPPET_PROMPT
 
+import os
 
+print(os.getcwd())
 params = load_toml_params("config.toml")
 
 

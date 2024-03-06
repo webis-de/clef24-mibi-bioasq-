@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import instructor
 from openai import OpenAI
-import tomllib as toml
+import toml
 
 if find_dotenv():
     load_dotenv()
@@ -15,6 +15,6 @@ client = instructor.patch(OpenAI(api_key=openai_key))
 
 
 def load_toml_params(param_file):
-    with open(param_file, "rb") as f:
+    with open(param_file, "r") as f:
         config = toml.load(f)
     return config

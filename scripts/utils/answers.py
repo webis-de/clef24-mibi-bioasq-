@@ -46,7 +46,7 @@ class IdealAnswer(BaseModel):
 
 
 class Answer:
-    def response_exact_answer(query: str, q_type: str, text_chunks: str):
+    def response_exact_answer(self, query: str, q_type: str, text_chunks: str):
 
         # answer_type_dict = {
         #     "yesno": "only yes or no",
@@ -97,7 +97,7 @@ class Answer:
         else:
             return response.answer
 
-    def response_ideal_answer(query: str, q_type: str, text_chunks: str):
+    def response_ideal_answer(self, query: str, q_type: str, text_chunks: str):
 
         response_model: type[BaseModel]
         if q_type == "summary":
@@ -136,42 +136,42 @@ class Answer:
             return [response.answer]
 
 
-with open("data/bioasq/questions_selected.json", "r") as f:
-    data = json.load(f)
+# with open("data/bioasq/questions_selected.json", "r") as f:
+#     data = json.load(f)
 
 
-# summary-type questions do not have exact_answer
-def print_exact_answer():
-    for d in data:
-        query = d["body"]
-        q_type = d["type"]
-        retrieved_results = [e["text"] for e in d["snippets"]]
-        text_chunks = " ".join([i for i in retrieved_results])
-        print(f"QUERY: {query}, TYPE: {q_type}")
-        print(f"GENERATED: {response_exact_answer(query, q_type, text_chunks)}")
-        if d["type"] != "summary":
-            print(f"TRUTH    : {d['exact_answer']}")
-            print()
-        else:
-            print(f"TRUTH    : {d['ideal_answer']}")
-            print()
+# # summary-type questions do not have exact_answer
+# def print_exact_answer():
+#     for d in data:
+#         query = d["body"]
+#         q_type = d["type"]
+#         retrieved_results = [e["text"] for e in d["snippets"]]
+#         text_chunks = " ".join([i for i in retrieved_results])
+#         print(f"QUERY: {query}, TYPE: {q_type}")
+#         print(f"GENERATED: {response_exact_answer(query, q_type, text_chunks)}")
+#         if d["type"] != "summary":
+#             print(f"TRUTH    : {d['exact_answer']}")
+#             print()
+#         else:
+#             print(f"TRUTH    : {d['ideal_answer']}")
+#             print()
 
 
-def print_ideal_answer():
-    for d in data:
-        query = d["body"]
-        q_type = d["type"]
-        retrieved_results = [e["text"] for e in d["snippets"]]
-        text_chunks = " ".join([i for i in retrieved_results])
-        print(f"QUERY: {query}, TYPE: {q_type}")
-        print(f"GENERATED: {response_ideal_answer(query, q_type, text_chunks)}")
-        print(f"TRUTH    : {d['ideal_answer']}")
-        print()
+# def print_ideal_answer():
+#     for d in data:
+#         query = d["body"]
+#         q_type = d["type"]
+#         retrieved_results = [e["text"] for e in d["snippets"]]
+#         text_chunks = " ".join([i for i in retrieved_results])
+#         print(f"QUERY: {query}, TYPE: {q_type}")
+#         print(f"GENERATED: {response_ideal_answer(query, q_type, text_chunks)}")
+#         print(f"TRUTH    : {d['ideal_answer']}")
+#         print()
 
 
-# print_exact_answer()
+# # print_exact_answer()
 
-print_ideal_answer()
+# print_ideal_answer()
 
 
 # Don't get a proper answer to the factoid question
