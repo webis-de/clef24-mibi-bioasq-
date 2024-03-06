@@ -1,13 +1,13 @@
 import os
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import instructor
 from openai import OpenAI
 import tomllib as toml
 
-try:
-    assert load_dotenv()
-except AssertionError:
+if find_dotenv():
+    load_dotenv()
+else:
     print("Not using .env file and assuming env variables are already set.")
 
 openai_key = os.environ.get("OPENAI_API_KEY")

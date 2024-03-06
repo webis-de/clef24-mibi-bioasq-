@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 from typing import List, Literal
 
 from .config import client, load_toml_params
-from .prompts import *
 
 
 params = load_toml_params("config.toml")
@@ -100,6 +99,7 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
 
 def response_ideal_answer(query: str, q_type: str, text_chunks: str):
 
+    response_model: type[BaseModel]
     if q_type == "summary":
         response_model = Summary
     else:

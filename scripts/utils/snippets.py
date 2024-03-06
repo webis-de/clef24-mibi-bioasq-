@@ -4,7 +4,7 @@ from transformers import pipeline
 from typing import List
 
 from .config import client, load_toml_params
-from .prompts import *
+from .prompts import SNIPPET_PROMPT
 
 
 params = load_toml_params("config.toml")
