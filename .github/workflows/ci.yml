@@ -6,20 +6,14 @@ on:
 jobs:
   python-build:
     name: 🏗️ Build Python wheels
-    strategy:
-      matrix:
-        python:
-        - '3.10'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Check-out
       uses: actions/checkout@v3
-    - name: 🧰 Install Protoc
-      run: sudo apt install protobuf-compiler
     - name: 🧰 Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python }}
+        python-version: '3.10'
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: 🧰 Install dependencies
@@ -30,26 +24,19 @@ jobs:
       run: twine check dist/*
     - name: 📤 Upload Python wheels
       uses: actions/upload-artifact@v3
-      if: matrix.python == '3.10'
       with:
         name: wheels
         path: dist
   python-code-check:
     name: 🔍 Check Python code
-    strategy:
-      matrix:
-        python:
-        - '3.10'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Check-out
       uses: actions/checkout@v3
-    - name: 🧰 Install Protoc
-      run: sudo apt install protobuf-compiler
     - name: 🧰 Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python }}
+        python-version: '3.10'
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: 🧰 Install dependencies
@@ -58,20 +45,14 @@ jobs:
       run: ruff .
   python-typing:
     name: 🔍 Check Python static typing
-    strategy:
-      matrix:
-        python:
-        - '3.10'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Check-out
       uses: actions/checkout@v3
-    - name: 🧰 Install Protoc
-      run: sudo apt install protobuf-compiler
     - name: 🧰 Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python }}
+        python-version: '3.10'
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: 🧰 Install dependencies
@@ -80,20 +61,14 @@ jobs:
       run: mypy .
   python-security:
     name: 🔍 Check Python code security
-    strategy:
-      matrix:
-        python:
-        - '3.10'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Check-out
       uses: actions/checkout@v3
-    - name: 🧰 Install Protoc
-      run: sudo apt install protobuf-compiler
     - name: 🧰 Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python }}
+        python-version: '3.10'
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: 🧰 Install dependencies
@@ -102,20 +77,14 @@ jobs:
       run: bandit -c pyproject.toml -r .
   python-test:
     name: 🧪 Test Python code
-    strategy:
-      matrix:
-        python:
-        - '3.10'
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Check-out
       uses: actions/checkout@v3
-    - name: 🧰 Install Protoc
-      run: sudo apt install protobuf-compiler
     - name: 🧰 Install Python
       uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python }}
+        python-version: '3.10'
         cache: pip
         cache-dependency-path: pyproject.toml
     - name: 🧰 Install dependencies
@@ -124,9 +93,7 @@ jobs:
       run: pytest --cov --cov-report=xml archive_query_log
     - name: 📤 Upload coverage to Codecov
       uses: codecov/codecov-action@v3
-      if: matrix.python == '3.10'
       with:
-        fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
   docker-build:
     name: 🏗️ Build Docker image
