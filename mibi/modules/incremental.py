@@ -11,6 +11,7 @@ class Task(Enum):
     make_snippets = 'retrieve snippets'
     make_exact_answer = 'generate exact answer'
     make_ideal_answer = 'generate summary answer'
+    none = 'none'
 
 
 class PredictNextTask(Signature):
@@ -35,9 +36,12 @@ class PredictNextTask(Signature):
     )
     task: str = OutputField(
         desc=(
-            f"Must always be one of '{Task.make_documents}', "
-            f"'{Task.make_snippets}', '{Task.make_exact_answer}', or "
-            f"'{Task.make_ideal_answer}'."
+            f"Must always be one of "
+            f"'{Task.make_documents.value}', "
+            f"'{Task.make_snippets.value}', "
+            f"'{Task.make_exact_answer.value}', "
+            f"'{Task.make_ideal_answer.value}', or "
+            f"'{Task.none.value}'."
         ),
         prefix="Next task:",
     )
@@ -77,9 +81,10 @@ class IncrementalAnswerModule(Module):
             exact_answer_module=self._exact_answer_module,
             ideal_answer_module=self._ideal_answer_module,
         )
-        while not builder.is_ready:
+        next_task: str = Task.none.value
+        while not builder.is_ready or next_task != Task.none.value:
             current_answer = builder.partial_answer
-            next_task: str = self._next_task.forward(
+            next_task_prediction = self._next_task.forward(
                 has_documents=(
                     "yes"
                     if current_answer.documents is not None
@@ -100,17 +105,26 @@ class IncrementalAnswerModule(Module):
                     if current_answer.ideal_answer is not None
                     else "no"
                 ),
-            ).answer
+            )
+            next_task = next_task_prediction.task
+            next_task = next_task.lower().strip()
             if next_task == Task.make_documents.value:
+                print("Making documents...")
                 builder.make_documents()
-            if next_task == Task.make_snippets.value:
+            elif next_task == Task.make_snippets.value:
+                print("Making snippets...")
                 builder.make_snippets()
-            if next_task == Task.make_exact_answer.value:
+            elif next_task == Task.make_exact_answer.value:
+                print("Making exact answer...")
                 builder.make_exact_answer()
-            if next_task == Task.make_ideal_answer.value:
+            elif next_task == Task.make_ideal_answer.value:
+                print("Making ideal answer...")
                 builder.make_ideal_answer()
+            elif next_task == Task.none.value:
+                print("Returning answer...")
+                return builder.answer
             else:
-                warn(RuntimeWarning(
+                raise RuntimeWarning(
                     f"Could not parse next task: {next_task!r}"
-                ))
+                )
         return builder.answer
