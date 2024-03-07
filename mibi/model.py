@@ -121,9 +121,21 @@ class Answer(BaseModel):
     exact_answer: ExactAnswer = Field(frozen=True)
 
 
-class TrainingQuestion(Question, PartialAnswer):
+class AnsweredQuestion(Question, PartialAnswer):
     pass
 
 
-class TrainingData(BaseModel):
-    questions: Sequence[TrainingQuestion] = Field(frozen=True)
+class AnsweredQuestionData(BaseModel):
+    questions: Sequence[AnsweredQuestion] = Field(frozen=True)
+
+
+class PartiallyAnsweredQuestion(Question, PartialAnswer):
+    pass
+
+
+class PartiallyAnsweredQuestionData(BaseModel):
+    questions: Sequence[PartiallyAnsweredQuestion] = Field(frozen=True)
+
+
+class QuestionData(BaseModel):
+    questions: Sequence[Question] = Field(frozen=True)
