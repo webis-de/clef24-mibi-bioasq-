@@ -1,5 +1,5 @@
 from typing import Protocol
-from mibi.model import Question, PartialAnswer, Documents, Snippets, ExactAnswer, IdealAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer, SummaryExactAnswer, NOT_AVAILABLE
+from mibi.model import Question, PartialAnswer, Documents, Snippets, ExactAnswer, IdealAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer, SummaryExactAnswer, NOT_AVAILABLE, Answer
 
 
 class DocumentsMaker(Protocol):
@@ -110,3 +110,17 @@ class IdealAnswerMaker(Protocol):
         partial_answer: PartialAnswer,
     ) -> IdealAnswer:
         return self.make_ideal_answer(question, partial_answer)
+
+
+class AnswerMaker(Protocol):
+    def make_answer(
+        self,
+        question: Question,
+    ) -> Answer:
+        raise NotImplementedError()
+
+    def __call__(
+        self,
+        question: Question,
+    ) -> Answer:
+        return self.make_answer(question)
