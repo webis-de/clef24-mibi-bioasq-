@@ -35,7 +35,7 @@ PubMedUrl = Annotated[
 Document: TypeAlias = PubMedUrl
 
 Documents: TypeAlias = Annotated[
-    list[Document],
+    Sequence[Document],
     Len(min_length=1),
 ]
 
@@ -74,21 +74,21 @@ class Snippet(BaseModel):
 
 
 Snippets: TypeAlias = Annotated[
-    list[Snippet],
+    Sequence[Snippet],
     Len(min_length=1),
 ]
 
 YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
 
 FactoidExactAnswer: TypeAlias = Annotated[
-    list[str],
+    Sequence[str],
     Len(min_length=1),
 ]
 
 ListExactAnswer: TypeAlias = Annotated[
     Sequence[
         Annotated[
-            list[str],
+            Sequence[str],
             Len(min_length=1),
         ]
     ],
@@ -100,7 +100,7 @@ SummaryExactAnswer: TypeAlias = Literal["n/a"]
 NOT_AVAILABLE: Final[SummaryExactAnswer] = "n/a"
 
 IdealAnswer: TypeAlias = Annotated[
-    list[str],
+    Sequence[str],
     Len(min_length=1),
 ]
 
@@ -126,4 +126,4 @@ class TrainingQuestion(Question, PartialAnswer):
 
 
 class TrainingData(BaseModel):
-    questions: list[TrainingQuestion] = Field(frozen=True)
+    questions: Sequence[TrainingQuestion] = Field(frozen=True)
