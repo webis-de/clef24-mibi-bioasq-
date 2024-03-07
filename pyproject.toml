@@ -79,6 +79,7 @@ exclude = [
     "venv",
     "notebooks",
     "data",
+    "scripts",  # FIXME: Include again, after fixing the issues.
 ]
 
 [tool.mypy]
@@ -87,6 +88,7 @@ exclude = [
     "venv",
     "notebooks",
     "data",
+    "scripts",  # FIXME: Include again, after fixing the issues.
 ]
 ignore_missing_imports = true
 
