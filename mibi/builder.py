@@ -70,6 +70,10 @@ class AnswerBuilder:
         )
 
     @property
+    def partial_answer(self) -> PartialAnswer:
+        return self._partial_answer
+
+    @property
     def is_ready(self) -> bool:
         if self._partial_answer.documents is None:
             return False
