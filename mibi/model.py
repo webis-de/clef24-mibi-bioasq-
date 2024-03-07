@@ -75,7 +75,7 @@ IdealAnswer: TypeAlias = Annotated[
 ExactAnswer: TypeAlias = YesNoExactAnswer | FactoidExactAnswer | ListExactAnswer | SummaryExactAnswer
 
 
-class IncompleteAnswer(BaseModel):
+class PartialAnswer(BaseModel):
     documents: Documents | None = None
     snippets: Snippets | None = None
     ideal_answer: IdealAnswer | None = None
@@ -89,7 +89,7 @@ class Answer(BaseModel):
     exact_answer: ExactAnswer
 
 
-class TrainingQuestion(Question, IncompleteAnswer):
+class TrainingQuestion(Question, PartialAnswer):
     pass
 
 
