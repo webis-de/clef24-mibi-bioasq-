@@ -23,6 +23,7 @@ class ListExact(BaseModel):
     )
 
 
+# TODO: literaly returns a list of strings; fix: reurn a str?
 class FactoidExact(BaseModel):
     answer: List[str] = Field(
         ...,
