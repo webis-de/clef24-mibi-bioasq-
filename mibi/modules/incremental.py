@@ -1,9 +1,8 @@
 from enum import Enum
-from warnings import warn
 from dspy import Module, Signature, Predict, InputField, OutputField
 from mibi.builder import AnswerBuilder
 from mibi.model import Question, Answer
-from mibi.modules import AnswerModule, DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
+from mibi.modules import DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 
 
 class Task(Enum):
