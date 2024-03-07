@@ -11,10 +11,10 @@ def test_answer_builder() -> None:
     )
     builder = AnswerBuilder(
         question=question,
-        documents_maker=MockDocumentsMaker(),
-        snippets_maker=MockSnippetsMaker(),
-        exact_answer_maker=MockExactAnswerMaker(),
-        ideal_answer_maker=MockIdealAnswerMaker(),
+        documents_module=MockDocumentsMaker(),
+        snippets_module=MockSnippetsMaker(),
+        exact_answer_module=MockExactAnswerMaker(),
+        ideal_answer_module=MockIdealAnswerMaker(),
     )
     assert builder.partial_answer.documents is None
     assert builder.partial_answer.snippets is None

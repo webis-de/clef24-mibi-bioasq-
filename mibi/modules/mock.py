@@ -1,11 +1,12 @@
 from random import randint, random
 from pydantic_core import Url
 from mibi.model import Question, PartialAnswer, Documents, Snippets, IdealAnswer, Snippet, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
-from mibi.modules import DocumentsMaker, SnippetsMaker, SwitchExactAnswerMaker, IdealAnswerMaker
+from mibi.modules import DocumentsModule, SnippetsModule, IdealAnswerModule
+from mibi.modules.helpers import AutoExactAnswerModule
 
 
-class MockDocumentsMaker(DocumentsMaker):
-    def make_documents(
+class MockDocumentsMaker(DocumentsModule):
+    def forward(
         self,
         question: Question,
         partial_answer: PartialAnswer,
@@ -14,8 +15,8 @@ class MockDocumentsMaker(DocumentsMaker):
         return [Url(f"http://www.ncbi.nlm.nih.gov/pubmed/{id}")]
 
 
-class MockSnippetsMaker(SnippetsMaker):
-    def make_snippets(
+class MockSnippetsMaker(SnippetsModule):
+    def forward(
         self,
         question: Question,
         partial_answer: PartialAnswer,
@@ -37,22 +38,22 @@ class MockSnippetsMaker(SnippetsMaker):
         ]
 
 
-class MockExactAnswerMaker(SwitchExactAnswerMaker):
-    def make_yes_no_exact_answer(
+class MockExactAnswerMaker(AutoExactAnswerModule):
+    def forward_yes_no(
             self,
             question: Question,
             partial_answer: PartialAnswer,
     ) -> YesNoExactAnswer:
         return "yes" if random() > 0.5 else "no"  # nosec: B311
 
-    def make_factoid_exact_answer(
+    def forward_factoid(
             self,
             question: Question,
             partial_answer: PartialAnswer,
     ) -> FactoidExactAnswer:
         return ["foo"] if random() > 0.5 else ["bar"]  # nosec: B311
 
-    def make_list_exact_answer(
+    def forward_list(
             self,
             question: Question,
             partial_answer: PartialAnswer,
@@ -62,8 +63,8 @@ class MockExactAnswerMaker(SwitchExactAnswerMaker):
                 [["bar"], ["baz"]])
 
 
-class MockIdealAnswerMaker(IdealAnswerMaker):
-    def make_ideal_answer(
+class MockIdealAnswerMaker(IdealAnswerModule):
+    def forward(
         self,
         question: Question,
         partial_answer: PartialAnswer,

@@ -1,33 +1,33 @@
 from mibi.model import PartialAnswer, Question, Answer
-from mibi.modules import DocumentsMaker, SnippetsMaker, ExactAnswerMaker, IdealAnswerMaker
+from mibi.modules import DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 
 
 class AnswerBuilder:
-    _documents_maker: DocumentsMaker
-    _snippets_maker: SnippetsMaker
-    _exact_answer_maker: ExactAnswerMaker
-    _ideal_answer_maker: IdealAnswerMaker
+    _documents_module: DocumentsModule
+    _snippets_module: SnippetsModule
+    _exact_answer_module: ExactAnswerModule
+    _ideal_answer_module: IdealAnswerModule
     _question: Question
     _partial_answer: PartialAnswer
 
     def __init__(
         self,
         question: Question,
-        documents_maker: DocumentsMaker,
-        snippets_maker: SnippetsMaker,
-        exact_answer_maker: ExactAnswerMaker,
-        ideal_answer_maker: IdealAnswerMaker,
+        documents_module: DocumentsModule,
+        snippets_module: SnippetsModule,
+        exact_answer_module: ExactAnswerModule,
+        ideal_answer_module: IdealAnswerModule,
     ) -> None:
         self.question = question
         self._partial_answer = PartialAnswer()
-        self.documents_maker = documents_maker
-        self.snippets_maker = snippets_maker
-        self.exact_answer_maker = exact_answer_maker
-        self.ideal_answer_maker = ideal_answer_maker
+        self._documents_module = documents_module
+        self._snippets_module = snippets_module
+        self._exact_answer_module = exact_answer_module
+        self._ideal_answer_module = ideal_answer_module
 
     def make_documents(self) -> None:
         self._partial_answer = PartialAnswer(
-            documents=self.documents_maker(
+            documents=self._documents_module.forward(
                 question=self.question,
                 partial_answer=self._partial_answer,
             ),
@@ -39,7 +39,7 @@ class AnswerBuilder:
     def make_snippets(self) -> None:
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
-            snippets=self.snippets_maker(
+            snippets=self._snippets_module.forward(
                 question=self.question,
                 partial_answer=self._partial_answer,
             ),
@@ -51,7 +51,7 @@ class AnswerBuilder:
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
-            exact_answer=self.exact_answer_maker(
+            exact_answer=self._exact_answer_module.forward(
                 question=self.question,
                 partial_answer=self._partial_answer,
             ),
@@ -63,7 +63,7 @@ class AnswerBuilder:
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
             exact_answer=self._partial_answer.exact_answer,
-            ideal_answer=self.ideal_answer_maker(
+            ideal_answer=self._ideal_answer_module.forward(
                 question=self.question,
                 partial_answer=self._partial_answer,
             ),
