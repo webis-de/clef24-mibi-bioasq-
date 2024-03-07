@@ -5,7 +5,7 @@ from mibi.modules import DocumentsModule, SnippetsModule, IdealAnswerModule
 from mibi.modules.helpers import AutoExactAnswerModule
 
 
-class MockDocumentsMaker(DocumentsModule):
+class MockDocumentsModule(DocumentsModule):
     def forward(
         self,
         question: Question,
@@ -15,7 +15,7 @@ class MockDocumentsMaker(DocumentsModule):
         return [Url(f"http://www.ncbi.nlm.nih.gov/pubmed/{id}")]
 
 
-class MockSnippetsMaker(SnippetsModule):
+class MockSnippetsModule(SnippetsModule):
     def forward(
         self,
         question: Question,
@@ -38,7 +38,7 @@ class MockSnippetsMaker(SnippetsModule):
         ]
 
 
-class MockExactAnswerMaker(AutoExactAnswerModule):
+class MockExactAnswerModule(AutoExactAnswerModule):
     def forward_yes_no(
             self,
             question: Question,
@@ -63,7 +63,7 @@ class MockExactAnswerMaker(AutoExactAnswerModule):
                 [["bar"], ["baz"]])
 
 
-class MockIdealAnswerMaker(IdealAnswerModule):
+class MockIdealAnswerModule(IdealAnswerModule):
     def forward(
         self,
         question: Question,

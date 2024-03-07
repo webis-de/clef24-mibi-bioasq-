@@ -1,7 +1,7 @@
 
 from mibi.builder import AnswerBuilder
 from mibi.model import Question
-from mibi.modules.mock import MockDocumentsMaker, MockSnippetsMaker, MockExactAnswerMaker, MockIdealAnswerMaker
+from mibi.modules.mock import MockDocumentsModule, MockSnippetsModule, MockExactAnswerModule, MockIdealAnswerModule
 
 def test_answer_builder() -> None:
     question = Question(
@@ -11,10 +11,10 @@ def test_answer_builder() -> None:
     )
     builder = AnswerBuilder(
         question=question,
-        documents_module=MockDocumentsMaker(),
-        snippets_module=MockSnippetsMaker(),
-        exact_answer_module=MockExactAnswerMaker(),
-        ideal_answer_module=MockIdealAnswerMaker(),
+        documents_module=MockDocumentsModule(),
+        snippets_module=MockSnippetsModule(),
+        exact_answer_module=MockExactAnswerModule(),
+        ideal_answer_module=MockIdealAnswerModule(),
     )
     assert builder.partial_answer.documents is None
     assert builder.partial_answer.snippets is None
