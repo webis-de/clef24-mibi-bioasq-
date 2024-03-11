@@ -5,6 +5,7 @@ from dotenv import load_dotenv, find_dotenv
 
 from mibi import __version__ as app_version
 from mibi.cli.run import run
+from mibi.cli.index import index
 
 
 def echo_version(
@@ -33,3 +34,4 @@ def cli() -> None:
 
 
 cli.add_command(run)
+cli.add_command(index)
