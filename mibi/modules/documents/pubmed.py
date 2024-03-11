@@ -20,6 +20,7 @@ class MeshTerm(InnerDoc):
     mesh_id: str = Keyword()  # type: ignore
     """MeSH ID"""
     term: str = Keyword()  # type: ignore
+    qualifiers: list[str] = Keyword()  # type: ignore
 
 
 class Article(Document):
@@ -31,7 +32,7 @@ class Article(Document):
     """DOI"""
     other_ids: list[str] = Keyword(multi=True)  # type: ignore
     """Other IDs of the same article."""
-    title: str = Text(required=True)  # type: ignore
+    title: str | None = Text()  # type: ignore
     """Title of the article."""
     abstract: str | None = Text()  # type: ignore
     """Abstract of the article."""
@@ -55,7 +56,7 @@ class Article(Document):
     """NLM unique identification."""
     issn: str | None = Keyword()  # type: ignore
     """ISSN of the journal."""
-    country: str = Keyword(required=True)  # type: ignore
+    country: str | None = Keyword()  # type: ignore
     """Country of the journal."""
     references_pubmed_ids: list[str] = Keyword(multi=True)  # type: ignore
     """PubMed IDs of references made to the article."""
@@ -90,6 +91,7 @@ class PubMedBaseline(Iterable[Article]):
         for article in tqdm(
             articles,
             desc=f"Parse {path}",
+            unit="article",
         ):
             if article["delete"]:
                 continue
@@ -111,11 +113,12 @@ class PubMedBaseline(Iterable[Article]):
             else:
                 other_ids = [
                     other_id.strip()
-                    for other_id in _other_ids.split(";")
+                    for other_id in _other_ids.split("; ")
                 ]
-            title: str = article["title"]
-            if len(title) == 0:
-                raise RuntimeError("Empty title.")
+            _title: str = article["title"]
+            title: str | None = _title
+            if len(_title) == 0:
+                title = None
             _abstract: str = article["abstract"]
             abstract: str | None = _abstract
             if len(_abstract) == 0:
@@ -137,8 +140,8 @@ class PubMedBaseline(Iterable[Article]):
                 mesh_terms = []
             else:
                 _mesh_terms_split: Iterator[list[str]] = (
-                    mesh_term.strip().split(":")
-                    for mesh_term in _mesh_terms.split(";")
+                    mesh_term.strip().split(":", maxsplit=1)
+                    for mesh_term in _mesh_terms.split("; ")
                 )
                 mesh_terms = [
                     MeshTerm(
@@ -153,8 +156,8 @@ class PubMedBaseline(Iterable[Article]):
                 publication_types = []
             else:
                 _publication_types_split: Iterator[list[str]] = (
-                    publication_type.strip().split(":")
-                    for publication_type in _publication_types.split(";")
+                    publication_type.strip().split(":", maxsplit=1)
+                    for publication_type in _publication_types.split("; ")
                 )
                 publication_types = [
                     MeshTerm(
@@ -170,7 +173,7 @@ class PubMedBaseline(Iterable[Article]):
             else:
                 keywords = [
                     keyword.strip()
-                    for keyword in _keywords.split(";")
+                    for keyword in _keywords.split("; ")
                 ]
             _chemicals: str = article["chemical_list"]
             chemicals: list[MeshTerm]
@@ -178,8 +181,8 @@ class PubMedBaseline(Iterable[Article]):
                 chemicals = []
             else:
                 _chemicals_split: Iterator[list[str]] = (
-                    chemical.strip().split(":")
-                    for chemical in _chemicals.split(";")
+                    chemical.strip().split(":", maxsplit=1)
+                    for chemical in _chemicals.split("; ")
                 )
                 chemicals = [
                     MeshTerm(
@@ -217,9 +220,10 @@ class PubMedBaseline(Iterable[Article]):
             issn: str | None = _issn
             if len(_issn) == 0:
                 issn = None
-            country: str = article["country"]
-            if len(country) == 0:
-                raise RuntimeError("Empty country.")
+            _country: str = article["country"]
+            country: str | None = _country
+            if len(_country) == 0:
+                country = None
             _references_pubmed_ids: str = article.get("reference", "")
             references_pubmed_ids: list[str]
             if len(_references_pubmed_ids) == 0:
@@ -227,7 +231,7 @@ class PubMedBaseline(Iterable[Article]):
             else:
                 references_pubmed_ids = [
                     references_pubmed_id.strip()
-                    for references_pubmed_id in _references_pubmed_ids.split(";")
+                    for references_pubmed_id in _references_pubmed_ids.split("; ")
                 ]
             _languages: str = article.get("languages", "")
             languages: list[str]
@@ -236,7 +240,7 @@ class PubMedBaseline(Iterable[Article]):
             else:
                 languages = [
                     language.strip()
-                    for language in _languages.split(";")
+                    for language in _languages.split("; ")
                 ]
             yield Article(
                 meta={"id": pubmed_id},
@@ -262,5 +266,10 @@ class PubMedBaseline(Iterable[Article]):
             )
 
     def __iter__(self) -> Iterator[Article]:
-        for path in self.directory.glob("pubmed*n*.xml.gz"):
+        paths = list(self.directory.glob("pubmed*n*.xml.gz"))
+        for path in tqdm(
+            paths,
+            desc="Parse PubMed files",
+            unit="file",
+        ):
             yield from self._parse_abstracts(path)

@@ -54,7 +54,6 @@ def pubmed(
     from elasticsearch7 import Elasticsearch
     from elasticsearch7.helpers import streaming_bulk
     from elasticsearch7_dsl import Index
-    from tqdm.auto import tqdm
     from mibi.modules.documents.pubmed import Article, PubMedBaseline
 
     elasticsearch_auth: tuple[str, str] | None
@@ -90,12 +89,11 @@ def pubmed(
             **article.to_dict(include_meta=True),
             "_index": elasticsearch_index,
         }
-        for article in tqdm(pubmed)
+        for article in pubmed
     )
+    for _ in actions:
+        pass
     results = streaming_bulk(elasticsearch, actions, max_retries=20)
-    for ok, info in tqdm(
-        results,
-        desc="Index to Elasticsearch",
-    ):
+    for ok, info in results:
         if not ok:
             raise RuntimeError(f"Indexing error: {info}")
