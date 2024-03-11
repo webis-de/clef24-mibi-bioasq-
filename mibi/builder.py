@@ -18,7 +18,7 @@ class AnswerBuilder:
         exact_answer_module: ExactAnswerModule,
         ideal_answer_module: IdealAnswerModule,
     ) -> None:
-        self.question = question
+        self._question = question
         self._partial_answer = PartialAnswer()
         self._documents_module = documents_module
         self._snippets_module = snippets_module
@@ -28,7 +28,7 @@ class AnswerBuilder:
     def make_documents(self) -> None:
         self._partial_answer = PartialAnswer(
             documents=self._documents_module.forward(
-                question=self.question,
+                question=self._question,
                 partial_answer=self._partial_answer,
             ),
             snippets=self._partial_answer.snippets,
@@ -40,7 +40,7 @@ class AnswerBuilder:
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._snippets_module.forward(
-                question=self.question,
+                question=self._question,
                 partial_answer=self._partial_answer,
             ),
             exact_answer=self._partial_answer.exact_answer,
@@ -52,7 +52,7 @@ class AnswerBuilder:
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
             exact_answer=self._exact_answer_module.forward(
-                question=self.question,
+                question=self._question,
                 partial_answer=self._partial_answer,
             ),
             ideal_answer=self._partial_answer.ideal_answer,
@@ -64,14 +64,34 @@ class AnswerBuilder:
             snippets=self._partial_answer.snippets,
             exact_answer=self._partial_answer.exact_answer,
             ideal_answer=self._ideal_answer_module.forward(
-                question=self.question,
+                question=self._question,
                 partial_answer=self._partial_answer,
             ),
         )
 
     @property
+    def question(self) -> Question:
+        return self._question
+
+    @property
     def partial_answer(self) -> PartialAnswer:
         return self._partial_answer
+    
+    @property
+    def has_documents(self) -> bool:
+        return self._partial_answer.documents is not None
+    
+    @property
+    def has_snippets(self) -> bool:
+        return self._partial_answer.snippets is not None
+    
+    @property
+    def has_exact_answer(self) -> bool:
+        return self._partial_answer.exact_answer is not None
+    
+    @property
+    def has_ideal_answer(self) -> bool:
+        return self._partial_answer.ideal_answer is not None
 
     @property
     def is_ready(self) -> bool:
