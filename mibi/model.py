@@ -121,7 +121,7 @@ class Answer(BaseModel):
     exact_answer: ExactAnswer = Field(frozen=True)
 
 
-class AnsweredQuestion(Question, PartialAnswer):
+class AnsweredQuestion(Answer, Question):
     pass
 
 
@@ -129,7 +129,7 @@ class AnsweredQuestionData(BaseModel):
     questions: Sequence[AnsweredQuestion] = Field(frozen=True)
 
 
-class PartiallyAnsweredQuestion(Question, PartialAnswer):
+class PartiallyAnsweredQuestion(PartialAnswer, Question):
     pass
 
 

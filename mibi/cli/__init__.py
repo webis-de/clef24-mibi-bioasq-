@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from click import Choice, group, Context, Parameter, echo, option, Path as PathType, argument
+from click import Choice, IntRange, group, Context, Parameter, echo, option, Path as PathType, argument
 from dotenv import load_dotenv, find_dotenv
 from dspy import OpenAI as DSPyOpenAI, settings as dspy_settings
 
 from mibi import __version__ as app_version
-from mibi.model import QuestionData
+from mibi.model import AnsweredQuestion, AnsweredQuestionData, QuestionData
 from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
 from mibi.modules.incremental import IncrementalAnswerModule
 from mibi.modules.mock import MockDocumentsModule, MockExactAnswerModule, MockIdealAnswerModule, MockSnippetsModule
@@ -40,7 +40,6 @@ def cli() -> None:
 @cli.command()
 @argument(
     "input_path",
-    # help="The BioASQ questions file.",
     type=PathType(
         path_type=Path,
         exists=True,
@@ -100,6 +99,18 @@ def cli() -> None:
     ]),
     default="incremental",
 )
+@option(
+    "-l", "--llm", "--language-model-name", "language_model_name",
+    type=Choice([
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0125"
+    ]),
+    default="gpt-3.5-turbo-0125",
+)
+@option(
+    "-n", "--first", "--first-questions", "first_questions",
+    type=IntRange(min=0),
+)
 def run(
     input_path: Path,
     output_path: Path,
@@ -118,13 +129,23 @@ def run(
     answer_module_type: Literal[
         "incremental"
     ],
+    language_model_name: Literal[
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0125"
+    ],
+    first_questions: int | None,
 ) -> None:
-    with input_path.open("r") as input_file:
+    with input_path.open("rb") as input_file:
         data = QuestionData.model_validate_json(input_file.read())
     echo(f"Found {len(data.questions)} questions.")
 
-    turbo = DSPyOpenAI(model="gpt-3.5-turbo")
-    dspy_settings.configure(lm=turbo)
+    if (language_model_name == "gpt-3.5-turbo" or
+            language_model_name == "gpt-3.5-turbo-0125"):
+        dspy_settings.configure(
+            lm=DSPyOpenAI(model="gpt-3.5-turbo"),
+        )
+    else:
+        raise ValueError("Unknown language model.")
 
     documents_module: DocumentsModule
     if documents_module_type == "mock":
@@ -156,5 +177,36 @@ def run(
         )
     else:
         raise ValueError("Unknown documents module type.")
+    
+    questions = data.questions
+    if first_questions is not None:
+        questions = questions[:first_questions]
 
-    print(answer_module.forward(data.questions[0]))
+    question_answer_pairs = (
+        (question, answer_module.forward(question))
+        for question in questions
+    )
+
+    answered_questions = [
+        AnsweredQuestion(
+            id=question.id,
+            type=question.type,
+            body=question.body,
+            documents=answer.documents,
+            snippets=answer.snippets,
+            ideal_answer=answer.ideal_answer,
+            exact_answer=answer.exact_answer,
+        )
+        for question, answer in question_answer_pairs
+    ]
+    
+    answered_data = AnsweredQuestionData(
+        questions=answered_questions,
+    )
+
+
+    with output_path.open("wt") as output_file:
+        output_file.write(answered_data.model_dump_json(
+            indent=2,
+        ))
+    echo(f"Answered {len(answered_data.questions)} questions.")
