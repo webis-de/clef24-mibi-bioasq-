@@ -109,7 +109,7 @@ class PubMedBaseline(Iterable[Article]):
             if len(_other_ids) == 0:
                 other_ids = []
             else:
-                other_ids: list[str] = [
+                other_ids = [
                     other_id.strip()
                     for other_id in _other_ids.split(";")
                 ]
@@ -140,7 +140,7 @@ class PubMedBaseline(Iterable[Article]):
                     mesh_term.strip().split(":")
                     for mesh_term in _mesh_terms.split(";")
                 )
-                mesh_terms: list[MeshTerm] = [
+                mesh_terms = [
                     MeshTerm(
                         mesh_id=mesh_id.strip(),
                         term=term.strip(),
@@ -156,7 +156,7 @@ class PubMedBaseline(Iterable[Article]):
                     publication_type.strip().split(":")
                     for publication_type in _publication_types.split(";")
                 )
-                publication_types: list[MeshTerm] = [
+                publication_types = [
                     MeshTerm(
                         mesh_id=mesh_id.strip(),
                         term=term.strip(),
@@ -168,7 +168,7 @@ class PubMedBaseline(Iterable[Article]):
             if len(_keywords) == 0:
                 keywords = []
             else:
-                keywords: list[str] = [
+                keywords = [
                     keyword.strip()
                     for keyword in _keywords.split(";")
                 ]
@@ -181,7 +181,7 @@ class PubMedBaseline(Iterable[Article]):
                     chemical.strip().split(":")
                     for chemical in _chemicals.split(";")
                 )
-                chemicals: list[MeshTerm] = [
+                chemicals = [
                     MeshTerm(
                         mesh_id=mesh_id.strip(),
                         term=term.strip(),
