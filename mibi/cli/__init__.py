@@ -8,8 +8,6 @@ from dspy import OpenAI as DSPyOpenAI, settings as dspy_settings
 from mibi import __version__ as app_version
 from mibi.model import AnsweredQuestion, AnsweredQuestionData, QuestionData
 from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
-from mibi.modules.incremental import IncrementalAnswerModule
-from mibi.modules.mock import MockDocumentsModule, MockExactAnswerModule, MockIdealAnswerModule, MockSnippetsModule
 
 
 def echo_version(
@@ -67,43 +65,45 @@ def cli() -> None:
 @option(
     "-d", "--documents-module", "documents_module_type",
     type=Choice([
-        "mock"
+        "mock",
     ]),
     default="mock",
 )
 @option(
     "-s", "--snippets-module", "snippets_module_type",
     type=Choice([
-        "mock"
+        "mock",
     ]),
     default="mock",
 )
 @option(
     "-e", "--exact-answer-module", "exact_answer_module_type",
     type=Choice([
-        "mock"
+        "mock",
     ]),
     default="mock",
 )
 @option(
     "-i", "--ideal-answer-module", "ideal_answer_module_type",
     type=Choice([
-        "mock"
+        "mock",
     ]),
     default="mock",
 )
 @option(
     "-a", "--answer-module", "answer_module_type",
     type=Choice([
-        "incremental"
+        "standard",
+        "incremental",
+        "independent",
     ]),
-    default="incremental",
+    default="standard",
 )
 @option(
     "-l", "--llm", "--language-model-name", "language_model_name",
     type=Choice([
         "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0125"
+        "gpt-3.5-turbo-0125",
     ]),
     default="gpt-3.5-turbo-0125",
 )
@@ -115,23 +115,25 @@ def run(
     input_path: Path,
     output_path: Path,
     documents_module_type: Literal[
-        "mock"
+        "mock",
     ],
     snippets_module_type: Literal[
-        "mock"
+        "mock",
     ],
     exact_answer_module_type: Literal[
-        "mock"
+        "mock",
     ],
     ideal_answer_module_type: Literal[
-        "mock"
+        "mock",
     ],
     answer_module_type: Literal[
-        "incremental"
+        "standard",
+        "incremental",
+        "independent",
     ],
     language_model_name: Literal[
         "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0125"
+        "gpt-3.5-turbo-0125",
     ],
     first_questions: int | None,
 ) -> None:
@@ -149,27 +151,48 @@ def run(
 
     documents_module: DocumentsModule
     if documents_module_type == "mock":
+        from mibi.modules.mock import MockDocumentsModule
         documents_module = MockDocumentsModule()
     else:
         raise ValueError("Unknown documents module type.")
     snippets_module: SnippetsModule
     if snippets_module_type == "mock":
+        from mibi.modules.mock import MockSnippetsModule
         snippets_module = MockSnippetsModule()
     else:
         raise ValueError("Unknown documents module type.")
     exact_answer_module: ExactAnswerModule
     if exact_answer_module_type == "mock":
+        from mibi.modules.mock import MockExactAnswerModule
         exact_answer_module = MockExactAnswerModule()
     else:
         raise ValueError("Unknown documents module type.")
     ideal_answer_module: IdealAnswerModule
     if ideal_answer_module_type == "mock":
+        from mibi.modules.mock import MockIdealAnswerModule
         ideal_answer_module = MockIdealAnswerModule()
     else:
         raise ValueError("Unknown documents module type.")
     answer_module: AnswerModule
-    if answer_module_type == "incremental":
+    if answer_module_type == "standard":
+        from mibi.modules.standard import StandardAnswerModule
+        answer_module = StandardAnswerModule(
+            documents_module=documents_module,
+            snippets_module=snippets_module,
+            exact_answer_module=exact_answer_module,
+            ideal_answer_module=ideal_answer_module,
+        )
+    elif answer_module_type == "incremental":
+        from mibi.modules.incremental import IncrementalAnswerModule
         answer_module = IncrementalAnswerModule(
+            documents_module=documents_module,
+            snippets_module=snippets_module,
+            exact_answer_module=exact_answer_module,
+            ideal_answer_module=ideal_answer_module,
+        )
+    elif answer_module_type == "independent":
+        from mibi.modules.independent import IndependentAnswerModule
+        answer_module = IndependentAnswerModule(
             documents_module=documents_module,
             snippets_module=snippets_module,
             exact_answer_module=exact_answer_module,
@@ -177,7 +200,7 @@ def run(
         )
     else:
         raise ValueError("Unknown documents module type.")
-    
+
     questions = data.questions
     if first_questions is not None:
         questions = questions[:first_questions]
@@ -199,11 +222,10 @@ def run(
         )
         for question, answer in question_answer_pairs
     ]
-    
+
     answered_data = AnsweredQuestionData(
         questions=answered_questions,
     )
-
 
     with output_path.open("wt") as output_file:
         output_file.write(answered_data.model_dump_json(
