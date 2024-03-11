@@ -26,6 +26,12 @@ Run the CLI with:
 mibi --help
 ```
 
+For example, to answer the questions from the file `data/training12b_new.json` and then save the answered questions to `data/training12b_new_answered.json`, simply run:
+
+```shell
+mibi run data/training12b_new.json data/training12b_new_answered.json
+```
+
 ## Development
 
 Refer to the general [installation instructions](#installation) to set up the development environment and install the dependencies.
