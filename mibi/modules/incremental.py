@@ -1,5 +1,4 @@
 from enum import Enum
-from time import sleep
 from typing import Callable, ParamSpec, TypeVar
 from warnings import warn
 from dspy import Module, Signature, Predict, InputField, OutputField
