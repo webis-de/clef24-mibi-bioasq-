@@ -101,47 +101,27 @@ class Article(Document):
             return None
         return f"https://doi.org/{self.doi}"
 
-    @classmethod
-    def parse(cls, article: dict) -> "Article | None":
-        if article["delete"]:
+    @staticmethod
+    def _parse_required(value: str) -> str:
+        if len(value) == 0:
+            raise RuntimeError("String must not be empty.")
+        return value
+
+    @staticmethod
+    def _parse_optional(value: str) -> str | None:
+        if len(value) == 0:
             return None
+        return value
 
-        pubmed_id: str = article["pmid"]
-        if len(pubmed_id) == 0:
-            raise RuntimeError("Empty PubMed ID.")
+    @staticmethod
+    def _parse_list(value: str) -> list[str]:
+        if len(value) == 0:
+            return []
+        return [item.strip() for item in value.split("; ")]
 
-        _pmc_id: str = article["pmc"]
-        pmc_id: str | None = _pmc_id
-        if len(_pmc_id) == 0:
-            pmc_id = None
-
-        _doi: str = article["doi"]
-        doi: str | None = _doi
-        if len(_doi) == 0:
-            doi = None
-
-        _other_ids: str = article["other_id"]
-        other_ids: list[str]
-        if len(_other_ids) == 0:
-            other_ids = []
-        else:
-            other_ids = [
-                other_id.strip()
-                for other_id in _other_ids.split("; ")
-            ]
-
-        _title: str = article["title"]
-        title: str | None = _title
-        if len(_title) == 0:
-            title = None
-
-        _abstract: str = article["abstract"]
-        abstract: str | None = _abstract
-        if len(_abstract) == 0:
-            abstract = None
-
-        _authors: list[dict[str, str]] = article["authors"]
-        authors: list[Author] = [
+    @staticmethod
+    def _parse_authors(values: list[dict[str, str]]) -> list[Author]:
+        return [
             Author(
                 lastname=author["lastname"],
                 forename=author["forename"],
@@ -149,129 +129,67 @@ class Article(Document):
                 identifier=author["identifier"],
                 affiliation=author["affiliation"],
             )
-            for author in _authors
+            for author in values
         ]
 
-        _mesh_terms: str = article["mesh_terms"]
-        mesh_terms: list[MeshTerm]
-        if len(_mesh_terms) == 0:
-            mesh_terms = []
-        else:
-            _mesh_terms_split: Iterator[list[str]] = (
-                mesh_term.strip().split(":", maxsplit=1)
-                for mesh_term in _mesh_terms.split("; ")
-            )
-            mesh_terms = [
-                MeshTerm(
+    @staticmethod
+    def _parse_mesh_terms(value: str) -> list[MeshTerm]:
+        if len(value) == 0:
+            return []
+        mesh_terms_split: Iterable[list[str]] = (
+            mesh_term.strip().split(":", maxsplit=1)
+            for mesh_term in value.split("; ")
+        )
+        mesh_terms: list[MeshTerm] = []
+        for mesh_id_term in mesh_terms_split:
+            if len(mesh_id_term) == 1 and len(mesh_terms) > 0:
+                mesh_terms[-1].qualifiers.append(mesh_id_term[0])
+            else:
+                mesh_id, term = mesh_id_term
+                mesh_terms.append(MeshTerm(
                     mesh_id=mesh_id.strip(),
                     term=term.strip(),
-                )
-                for mesh_id, term in _mesh_terms_split
-            ]
+                    qualifiers=[],
+                ))
+        return mesh_terms
 
-        _publication_types: str = article["publication_types"]
-        publication_types: list[MeshTerm]
-        if len(_publication_types) == 0:
-            publication_types = []
+    @staticmethod
+    def _parse_date(value: str) -> datetime:
+        if value.count("-") == 0:
+            return datetime.strptime(value, "%Y")
+        elif value.count("-") == 1:
+            return datetime.strptime(value, "%Y-%m")
+        elif value.count("-") == 2:
+            return datetime.strptime(value, "%Y-%m-%d")
         else:
-            _publication_types_split: Iterator[list[str]] = (
-                publication_type.strip().split(":", maxsplit=1)
-                for publication_type in _publication_types.split("; ")
-            )
-            publication_types = [
-                MeshTerm(
-                    mesh_id=mesh_id.strip(),
-                    term=term.strip(),
-                )
-                for mesh_id, term in _publication_types_split
-            ]
+            raise RuntimeError(f"Unsupported date format: {value}")
 
-        _keywords: str = article["keywords"].strip()
-        keywords: list[str]
-        if len(_keywords) == 0:
-            keywords = []
-        else:
-            keywords = [
-                keyword.strip()
-                for keyword in _keywords.split("; ")
-            ]
-
-        _chemicals: str = article["chemical_list"]
-        chemicals: list[MeshTerm]
-        if len(_chemicals) == 0:
-            chemicals = []
-        else:
-            _chemicals_split: Iterator[list[str]] = (
-                chemical.strip().split(":", maxsplit=1)
-                for chemical in _chemicals.split("; ")
-            )
-            chemicals = [
-                MeshTerm(
-                    mesh_id=mesh_id.strip(),
-                    term=term.strip(),
-                )
-                for mesh_id, term in _chemicals_split
-            ]
-
-        _publication_date: str = article["pubdate"]
-        publication_date: datetime
-        if _publication_date.count("-") == 0:
-            publication_date = datetime.strptime(
-                _publication_date, "%Y")
-        elif _publication_date.count("-") == 1:
-            publication_date = datetime.strptime(
-                _publication_date, "%Y-%m")
-        elif _publication_date.count("-") == 2:
-            publication_date = datetime.strptime(
-                _publication_date, "%Y-%m-%d")
-        else:
-            raise RuntimeError(
-                f"Unsupported date format: {_publication_date}")
-
-        _journal: str = article["journal"]
-        journal: str | None = _journal
-        if len(_journal) == 0:
-            journal = None
-
-        _journal_abbreviation: str = article["medline_ta"]
-        journal_abbreviation: str | None = _journal_abbreviation
-        if len(_journal_abbreviation) == 0:
-            journal_abbreviation = None
-
-        nlm_id: str = article["nlm_unique_id"]
-        if len(nlm_id) == 0:
-            raise RuntimeError("Empty NLM ID.")
-
-        _issn: str = article["issn_linking"]
-        issn: str | None = _issn
-        if len(_issn) == 0:
-            issn = None
-
-        _country: str = article["country"]
-        country: str | None = _country
-        if len(_country) == 0:
-            country = None
-
-        _references_pubmed_ids: str = article.get("reference", "")
-        references_pubmed_ids: list[str]
-        if len(_references_pubmed_ids) == 0:
-            references_pubmed_ids = []
-        else:
-            references_pubmed_ids = [
-                references_pubmed_id.strip()
-                for references_pubmed_id in _references_pubmed_ids.split("; ")
-            ]
-
-        _languages: str = article.get("languages", "")
-        languages: list[str]
-        if len(_languages) == 0:
-            languages = []
-        else:
-            languages = [
-                language.strip()
-                for language in _languages.split("; ")
-            ]
-
+    @classmethod
+    def parse(cls, article: dict) -> "Article | None":
+        if article["delete"]:
+            return None
+        pubmed_id = cls._parse_required(article["pmid"])
+        pmc_id = cls._parse_optional(article["pmc"])
+        doi = cls._parse_optional(article["doi"])
+        other_ids = cls._parse_list(article["other_id"])
+        title = cls._parse_optional(article["title"])
+        abstract = cls._parse_optional(article["abstract"])
+        authors = cls._parse_authors(article["authors"])
+        mesh_terms: list[MeshTerm] = cls._parse_mesh_terms(
+            article["mesh_terms"])
+        publication_types: list[MeshTerm] = cls._parse_mesh_terms(
+            article["publication_types"])
+        keywords = cls._parse_list(article["keywords"])
+        chemicals: list[MeshTerm] = cls._parse_mesh_terms(
+            article["chemical_list"])
+        publication_date = cls._parse_date(article["pubdate"])
+        journal = cls._parse_optional(article["journal"])
+        journal_abbreviation = cls._parse_optional(article["medline_ta"])
+        nlm_id = cls._parse_required(article["nlm_unique_id"])
+        issn = cls._parse_optional(article["issn_linking"])
+        country = cls._parse_optional(article["country"])
+        references_pubmed_ids = cls._parse_list(article.get("reference", ""))
+        languages = cls._parse_list(article.get("languages", ""))
         return Article(
             meta={"id": pubmed_id},
             pubmed_id=pubmed_id,
