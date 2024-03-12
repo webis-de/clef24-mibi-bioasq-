@@ -9,11 +9,23 @@ from tqdm.auto import tqdm
 
 
 class Author(InnerDoc):
-    lastname: str = Text()  # type: ignore
-    forename: str = Text()  # type: ignore
+    lastname: str = Text(
+        fields={
+            "keyword": Keyword()
+        }
+    )  # type: ignore
+    forename: str = Text(
+        fields={
+            "keyword": Keyword()
+        }
+    )  # type: ignore
     initials: str = Keyword()  # type: ignore
     identifier: str = Keyword()  # type: ignore
-    affiliation: str = Text()  # type: ignore
+    affiliation: str = Text(
+        fields={
+            "keyword": Keyword()
+        }
+    )  # type: ignore
 
 
 class MeshTerm(InnerDoc):
@@ -48,7 +60,11 @@ class Article(Document):
     publication_date: datetime = Date(
         default_timezone="UTC", required=True)  # type: ignore
     """Publication date."""
-    journal: str | None = Text()  # type: ignore
+    journal: str | None = Text(
+        fields={
+            "keyword": Keyword()
+        }
+    )  # type: ignore
     """Journal of the article."""
     journal_abbreviation: str | None = Keyword()  # type: ignore
     """Journal abbreviation."""
@@ -62,6 +78,16 @@ class Article(Document):
     """PubMed IDs of references made to the article."""
     languages: list[str] = Keyword(multi=True)  # type: ignore
     """List of languages."""
+
+    @property
+    def pubmed_id_url(self) -> str:
+        return f"https://pubmed.ncbi.nlm.nih.gov/{self.pubmed_id}"
+
+    @property
+    def pmc_id_url(self) -> str | None:
+        if self.pmc_id is None:
+            return None
+        return f"https://ncbi.nlm.nih.gov/pmc/articles/{self.pmc_id}"
 
     @property
     def doi_url(self) -> str | None:
