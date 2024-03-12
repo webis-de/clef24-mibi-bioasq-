@@ -37,6 +37,7 @@ dependencies = [
     "pubmed-parser~=0.3.1",
     "pyrate-limiter~=3.2",
     "python-dotenv~=1.0",
+    "python-terrier~=0.10.0",
     "requests~=2.31",
     "tqdm~=4.64",
     "torch~=2.0",
