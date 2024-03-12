@@ -36,6 +36,12 @@ class MeshTerm(InnerDoc):
 
 
 class Article(Document):
+    class Index:
+        settings = {
+            "number_of_shards": 3,
+            "number_of_replicas": 2,
+        }
+
     pubmed_id: str = Keyword(required=True)  # type: ignore
     """PubMed ID"""
     pmc_id: str | None = Keyword()  # type: ignore

@@ -1,5 +1,5 @@
 from pathlib import Path
-from click import UsageError, group, Path as PathParam, option, echo
+from click import UsageError, group, Path as PathParam, option
 
 
 @group()
@@ -52,9 +52,8 @@ def pubmed(
     elasticsearch_index: str,
 ) -> None:
     from elasticsearch7 import Elasticsearch
-    from elasticsearch7.helpers import streaming_bulk
-    from elasticsearch7_dsl import Index
     from mibi.modules.documents.pubmed import Article, PubMedBaseline
+    from mibi.utils.elasticsearch import ElasticsearchIndexer
 
     elasticsearch_auth: tuple[str, str] | None
     if elasticsearch_username is not None and elasticsearch_password is None:
@@ -66,34 +65,17 @@ def pubmed(
     else:
         elasticsearch_auth = None
 
+    articles = PubMedBaseline(
+        directory=pubmed_baseline_path,
+    )
     elasticsearch = Elasticsearch(
         hosts=elasticsearch_url,
         http_auth=elasticsearch_auth,
     )
-
-    echo(
-        f"Prepare PubMed baseline index "
-        f"on Elasticsearch: {elasticsearch_index}")
-    Article.init(index=elasticsearch_index, using=elasticsearch)
-    Index(elasticsearch_index).settings(
-        number_of_shards=3,
-        number_of_replicas=2,
+    indexer = ElasticsearchIndexer(
+        document_type=Article,
+        client=elasticsearch,
+        index=elasticsearch_index,
+        progress=False,
     )
-
-    pubmed = PubMedBaseline(pubmed_baseline_path)
-
-    echo(
-        f"Indexing PubMed baseline from {pubmed_baseline_path} to Elasticsearch index {elasticsearch_index}...")
-    actions = (
-        {
-            **article.to_dict(include_meta=True),
-            "_index": elasticsearch_index,
-        }
-        for article in pubmed
-    )
-    for _ in actions:
-        pass
-    results = streaming_bulk(elasticsearch, actions, max_retries=20)
-    for ok, info in results:
-        if not ok:
-            raise RuntimeError(f"Indexing error: {info}")
+    indexer.index_all(articles)
