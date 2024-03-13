@@ -73,6 +73,9 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
     type=Choice([
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-0125",
+        "text-davinci-003",
+        "Mixtral-8x7B-Instruct-v0.1",
+        "Mistral-7B-Instruct-v0.2",
     ]),
     default="gpt-3.5-turbo-0125",
 )
@@ -103,24 +106,21 @@ def run(
     language_model_name: Literal[
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-0125",
+        "text-davinci-003",
+        "Mixtral-8x7B-Instruct-v0.1",
+        "Mistral-7B-Instruct-v0.2",
     ],
     first_questions: int | None,
 ) -> None:
     from mibi.model import AnsweredQuestion, AnsweredQuestionData, QuestionData
     from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
+    from mibi.utils.language_models import init_language_model_clients
 
     with input_path.open("rb") as input_file:
         data = QuestionData.model_validate_json(input_file.read())
     echo(f"Found {len(data.questions)} questions.")
 
-    if (language_model_name == "gpt-3.5-turbo" or
-            language_model_name == "gpt-3.5-turbo-0125"):
-        from dspy import OpenAI as DSPyOpenAI, settings as dspy_settings
-        dspy_settings.configure(
-            lm=DSPyOpenAI(model="gpt-3.5-turbo"),
-        )
-    else:
-        raise ValueError("Unknown language model.")
+    init_language_model_clients(language_model_name)
 
     documents_module: DocumentsModule
     if documents_module_type == "mock":
