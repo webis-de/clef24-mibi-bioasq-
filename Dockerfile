@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get -y update && \
-    apt-get -y install git build-essential
+    apt-get -y install git build-essential zlib1g-dev libpcre3-dev
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     ([ -d /venv ] || python3 -m venv /venv) && \
