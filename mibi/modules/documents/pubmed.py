@@ -1,16 +1,24 @@
 from dataclasses import dataclass
 from datetime import datetime
-from functools import cache
 from itertools import chain
 from pathlib import Path
-from typing import Iterator, Iterable, Sized
+from typing import Callable, Iterator, Iterable, Sized
 
 from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl import Document, Date, Text, Keyword, InnerDoc, Nested
 from elasticsearch7_dsl.aggs import Terms
+from joblib import Memory
 from lxml.etree import parse  # nosec: B410
 from pubmed_parser import parse_medline_xml
 from tqdm.auto import tqdm
+
+from mibi import PROJECT_DIR
+
+
+_memory = Memory(
+    location=PROJECT_DIR / "data" / "cache",
+    verbose=0,
+)
 
 
 class Author(InnerDoc):
@@ -253,6 +261,36 @@ class Article(Document):
         )
 
 
+def _pmids(path: Path) -> Iterator[str]:
+    print(f"Find PubMed IDs in: {path}")
+    root = parse(path, parser=None)  # nosec: B320
+    pmid_results = chain(
+        root.iterfind(".//PubmedArticle/MedlineCitation/PMID"),
+        root.iterfind(
+            ".//PubmedArticle/PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]"),
+    )
+    for pmid in pmid_results:
+        pmid_text = pmid.text
+        if pmid_text is not None:
+            yield pmid_text
+
+
+@_memory.cache
+def _count_cached(path: Path) -> int:
+    return sum(1 for _ in _pmids(path))
+
+
+_count: Callable[[Path], int] = _count_cached  # type: ignore
+
+
+@_memory.cache
+def _count_unique_cached(path: Path) -> int:
+    return len(set(_pmids(path)))
+
+
+_count_unique: Callable[[Path], int] = _count_unique_cached  # type: ignore
+
+
 @dataclass(frozen=True)
 class PubMedBaseline(Iterable[Article], Sized):
     directory: Path
@@ -261,23 +299,6 @@ class PubMedBaseline(Iterable[Article], Sized):
         if not self.directory.is_dir():
             raise RuntimeError(
                 f"Cannot read PubMed baseline from: {self.directory}")
-
-    def _pmids(self, path: Path) -> Iterator[str]:
-        print(f"Find PubMed IDs in: {path}")
-        root = parse(path, parser=None)  # nosec: B320
-        pmid_results = chain(
-            root.iterfind(".//PubmedArticle/MedlineCitation/PMID"),
-            root.iterfind(
-                ".//PubmedArticle/PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]"),
-        )
-        for pmid in pmid_results:
-            pmid_text = pmid.text
-            if pmid_text is not None:
-                yield pmid_text
-
-    @cache
-    def _count(self, path: Path) -> int:
-        return sum(1 for _ in self._pmids(path))
 
     @staticmethod
     def _parse_articles(path: Path) -> Iterator[Article]:
@@ -309,10 +330,7 @@ class PubMedBaseline(Iterable[Article], Sized):
             yield from self._parse_articles(path)
 
     def __len__(self) -> int:
-        return sum(
-            self._count(path)
-            for path in self._paths()
-        )
+        return sum(_count(path) for path in self._paths())
 
 
 @dataclass(frozen=True)
@@ -320,10 +338,6 @@ class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
     client: Elasticsearch
     index: str | None = None
 
-    def _count_unique(self, path: Path) -> int:
-        return len(set(self._pmids(path)))
-
-    @cache
     def _paths(self) -> list[Path]:
         paths = super()._paths()
         if len(paths) == 0:
@@ -349,5 +363,5 @@ class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
         return [
             path
             for path in paths
-            if source_file_counts.get(path.name, 0) < self._count_unique(path)
+            if source_file_counts.get(path.name, 0) < _count_unique(path)
         ]
