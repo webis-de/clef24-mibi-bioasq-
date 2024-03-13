@@ -73,6 +73,10 @@ class PyTerrierModule(Generic[_T], ABC):
         return {
             **document_data,
             "snippet_text": snippet.text,
+            "snippet_begin_section": snippet.begin_section,
+            "snippet_offset_in_begin_section": snippet.offset_in_begin_section,
+            "snippet_end_section": snippet.end_section,
+            "snippet_offset_in_end_section": snippet.offset_in_end_section,
         }
 
     @abstractmethod
