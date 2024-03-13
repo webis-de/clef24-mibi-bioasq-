@@ -1,31 +1,42 @@
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cache
+from itertools import chain
 from pathlib import Path
-from typing import Iterator, Iterable
+from typing import Iterator, Iterable, Sized
 
+from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl import Document, Date, Text, Keyword, InnerDoc, Nested
+from elasticsearch7_dsl.aggs import Terms
+from lxml.etree import parse  # nosec: B410
 from pubmed_parser import parse_medline_xml
 from tqdm.auto import tqdm
 
 
 class Author(InnerDoc):
-    lastname: str = Text(
+    lastname: str | None = Text(
         fields={
             "keyword": Keyword()
         }
     )  # type: ignore
-    forename: str = Text(
+    forename: str | None = Text(
         fields={
             "keyword": Keyword()
         }
     )  # type: ignore
-    initials: str = Keyword()  # type: ignore
-    identifier: str = Keyword()  # type: ignore
-    affiliation: str = Text(
+    initials: str | None = Keyword()  # type: ignore
+    orcid: str | None = Keyword()  # type: ignore
+    affiliation: str | None = Text(
         fields={
             "keyword": Keyword()
         }
     )  # type: ignore
+
+    @property
+    def pmc_id_url(self) -> str | None:
+        if self.pmc_id is None:
+            return None
+        return f"https://ncbi.nlm.nih.gov/pmc/articles/{self.pmc_id}"
 
 
 class MeshTerm(InnerDoc):
@@ -84,6 +95,8 @@ class Article(Document):
     """PubMed IDs of references made to the article."""
     languages: list[str] = Keyword(multi=True)  # type: ignore
     """List of languages."""
+    source_file: str = Keyword(required=True)  # type: ignore
+    """Basename of the XML file that contains this article."""
 
     @property
     def pubmed_id_url(self) -> str:
@@ -120,14 +133,39 @@ class Article(Document):
         return [item.strip() for item in value.split("; ")]
 
     @staticmethod
+    def _parse_orcid(value: str) -> str | None:
+        if len(value) == 0:
+            return None
+        for prefix in (
+            "http://orcid.org/",
+            "https://orcid.org/",
+            "http//:www.orcid.org/",
+            "https//:www.orcid.org/",
+            "%20",
+            "s",
+        ):
+            if value.startswith(prefix):
+                value = value.removeprefix(prefix)
+                break
+        if len(value) == 19 and value.count("-") == 3:
+            return value
+        if len(value) == 18 and value.count("-") == 3:
+            return f"{value}X"
+        if len(value) == 16 and (
+            value.isnumeric() or (
+                value[:15].isnumeric() and value[15] == "X")):
+            return f"{value[0:4]}-{value[4:8]}-{value[8:12]}-{value[12:16]}"
+        raise RuntimeError(f"Could not parse author identifier: {value}")
+
+    @staticmethod
     def _parse_authors(values: list[dict[str, str]]) -> list[Author]:
         return [
             Author(
-                lastname=author["lastname"],
-                forename=author["forename"],
-                initials=author["initials"],
-                identifier=author["identifier"],
-                affiliation=author["affiliation"],
+                lastname=Article._parse_optional(author["lastname"]),
+                forename=Article._parse_optional(author["forename"]),
+                initials=Article._parse_optional(author["initials"]),
+                orcid=Article._parse_orcid(author["identifier"]),
+                affiliation=Article._parse_optional(author["affiliation"]),
             )
             for author in values
         ]
@@ -165,7 +203,7 @@ class Article(Document):
             raise RuntimeError(f"Unsupported date format: {value}")
 
     @classmethod
-    def parse(cls, article: dict) -> "Article | None":
+    def parse(cls, article: dict, path: Path) -> "Article | None":
         if article["delete"]:
             return None
         pubmed_id = cls._parse_required(article["pmid"])
@@ -211,17 +249,35 @@ class Article(Document):
             country=country,
             references_pubmed_ids=references_pubmed_ids,
             languages=languages,
+            source_file=path.name,
         )
 
 
 @dataclass(frozen=True)
-class PubMedBaseline(Iterable[Article]):
+class PubMedBaseline(Iterable[Article], Sized):
     directory: Path
 
     def __post_init__(self):
         if not self.directory.is_dir():
             raise RuntimeError(
                 f"Cannot read PubMed baseline from: {self.directory}")
+
+    def _pmids(self, path: Path) -> Iterator[str]:
+        print(f"Find PubMed IDs in: {path}")
+        root = parse(path, parser=None)  # nosec: B320
+        pmid_results = chain(
+            root.iterfind(".//PubmedArticle/MedlineCitation/PMID"),
+            root.iterfind(
+                ".//PubmedArticle/PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]"),
+        )
+        for pmid in pmid_results:
+            pmid_text = pmid.text
+            if pmid_text is not None:
+                yield pmid_text
+
+    @cache
+    def _count(self, path: Path) -> int:
+        return sum(1 for _ in self._pmids(path))
 
     @staticmethod
     def _parse_articles(path: Path) -> Iterator[Article]:
@@ -237,16 +293,61 @@ class PubMedBaseline(Iterable[Article]):
             desc=f"Parse {path}",
             unit="article",
         ):
-            parsed = Article.parse(article)
+            parsed = Article.parse(
+                article=article,
+                path=path,
+            )
             if parsed is None:
                 continue
             yield parsed
 
+    def _paths(self) -> list[Path]:
+        return list(self.directory.glob("pubmed*n*.xml.gz"))
+
     def __iter__(self) -> Iterator[Article]:
-        paths = list(self.directory.glob("pubmed*n*.xml.gz"))
-        for path in tqdm(
-            paths,
-            desc="Parse PubMed files",
-            unit="file",
-        ):
+        for path in self._paths():
             yield from self._parse_articles(path)
+
+    def __len__(self) -> int:
+        return sum(
+            self._count(path)
+            for path in self._paths()
+        )
+
+
+@dataclass(frozen=True)
+class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
+    client: Elasticsearch
+    index: str | None = None
+
+    def _count_unique(self, path: Path) -> int:
+        return len(set(self._pmids(path)))
+
+    @cache
+    def _paths(self) -> list[Path]:
+        paths = super()._paths()
+        if len(paths) == 0:
+            return paths
+
+        print(
+            f"Fetching indexed counts from Elasticsearch index: {self.index}")
+        source_file_search = Article.search(
+            using=self.client,
+            index=self.index,
+        )
+        source_file_search.aggs.bucket(
+            name="source_file",
+            agg_type=Terms(field="source_file")
+        )
+        source_file_buckets = source_file_search.execute()\
+            .aggs.source_file.buckets
+        source_file_counts: dict[str, int] = {
+            str(bucket.key): int(str(bucket.doc_count))
+            for bucket in source_file_buckets
+        }
+
+        return [
+            path
+            for path in paths
+            if source_file_counts.get(path.name, 0) < self._count_unique(path)
+        ]

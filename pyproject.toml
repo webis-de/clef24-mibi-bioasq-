@@ -49,6 +49,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 tests = [
     "bandit[toml]~=1.7",
+    "lxml-stubs~=0.5.1",
     "mypy~=1.5",
     "pandas-stubs~=2.0",
     "pytest~=8.0",

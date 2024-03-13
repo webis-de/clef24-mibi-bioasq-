@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Iterable
 from click import UsageError, group, Path as PathParam, option
 
 
@@ -9,7 +10,7 @@ def index() -> None:
 
 @index.command()
 @option(
-    "--p", "--pubmed-baseline", "pubmed_baseline_path",
+    "-p", "--pubmed-baseline", "pubmed_baseline_path",
     type=PathParam(
         path_type=Path,
         exists=True,
@@ -44,15 +45,22 @@ def index() -> None:
     envvar="ELASTICSEARCH_INDEX_PUBMED",
     required=True,
 )
+@option(
+    "-f", "--force",
+    type=bool,
+    is_flag=True,
+    default=False,
+)
 def pubmed(
     pubmed_baseline_path: Path,
     elasticsearch_url: str,
     elasticsearch_username: str | None,
     elasticsearch_password: str | None,
     elasticsearch_index: str,
+    force: bool,
 ) -> None:
     from elasticsearch7 import Elasticsearch
-    from mibi.modules.documents.pubmed import Article, PubMedBaseline
+    from mibi.modules.documents.pubmed import Article, PubMedBaseline, PubMedBaselineNonIndexedElasticsearch
     from mibi.utils.elasticsearch import ElasticsearchIndexer
 
     elasticsearch_auth: tuple[str, str] | None
@@ -65,17 +73,23 @@ def pubmed(
     else:
         elasticsearch_auth = None
 
-    articles = PubMedBaseline(
-        directory=pubmed_baseline_path,
-    )
     elasticsearch = Elasticsearch(
         hosts=elasticsearch_url,
         http_auth=elasticsearch_auth,
     )
+    articles: Iterable[Article]
+    if force:
+        articles = PubMedBaseline(pubmed_baseline_path)
+    else:
+        articles = PubMedBaselineNonIndexedElasticsearch(
+            directory=pubmed_baseline_path,
+            client=elasticsearch,
+            index=elasticsearch_index,
+        )
     indexer = ElasticsearchIndexer(
         document_type=Article,
         client=elasticsearch,
         index=elasticsearch_index,
-        progress=False,
+        progress=True,
     )
     indexer.index_all(articles)

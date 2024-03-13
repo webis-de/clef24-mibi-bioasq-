@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Iterable, Type, TypeVar, Iterator
+from typing import Any, Generic, Iterable, Sized, Type, TypeVar, Iterator
 
 from elasticsearch7 import Elasticsearch
 from elasticsearch7.helpers import streaming_bulk
@@ -23,19 +23,19 @@ class ElasticsearchIndexer(Generic[T]):
         return document.to_dict(include_meta=True)
 
     def iter_index(self, documents: Iterable[T]) -> Iterator[None]:
-        print(f"Prepare Elasticsearch index : {self.index}")
+        total = len(documents) if isinstance(documents, Sized) else None
+
+        print(f"Prepare Elasticsearch index: {self.index}")
         self.document_type.init(
             using=self.client,
             index=self.index,
         )
 
-        print(f"Indexing to Elasticsearch index {self.index}...")
+        print(f"Indexing to Elasticsearch index: {self.index}")
         actions = (
             self._action(document)
             for document in documents
         )
-        for _ in actions:
-            pass
         results: Iterable[tuple[bool, Any]] = streaming_bulk(
             client=self.client,
             actions=actions,
@@ -44,6 +44,7 @@ class ElasticsearchIndexer(Generic[T]):
         if self.progress:
             results = tqdm(
                 results,
+                total=total,
                 desc="Indexing",
                 unit="doc",
             )
