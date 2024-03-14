@@ -88,6 +88,7 @@ class IncrementalAnswerModule(
         self,
         builder: AnswerBuilder,
         history: Sequence[HistoryItem],
+        **kwargs,
     ) -> Task:
         input = NextTaskInput(
             question=builder.question.body,
@@ -95,7 +96,8 @@ class IncrementalAnswerModule(
             history=history,
             is_ready=builder.is_ready,
         )
-        prediction: Prediction = self._predict_next_task.forward(input=input)
+        prediction: Prediction = self._predict_next_task.forward(
+            input=input, **kwargs)
         output = cast(NextTaskOutput, prediction.output)
         return output.task
 
@@ -103,6 +105,7 @@ class IncrementalAnswerModule(
         self,
         builder: AnswerBuilder,
         history: Sequence[HistoryItem],
+        **kwargs,
     ) -> HistoryItem | None:
         task = self._next_task(
             builder=builder,
@@ -141,7 +144,7 @@ class IncrementalAnswerModule(
         else:
             raise RuntimeError(f"Unknown task: {task}")
 
-    def forward(self, question: Question) -> Answer:
+    def forward(self, question: Question, **kwargs) -> Answer:
         builder = AnswerBuilder(
             question=question,
             documents_module=self._documents_module,
@@ -156,6 +159,7 @@ class IncrementalAnswerModule(
             history_item = self._run_next_task(
                 builder=builder,
                 history=history,
+                **kwargs,
             )
             if history_item is None:
                 break
