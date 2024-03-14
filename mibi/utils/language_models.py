@@ -13,8 +13,6 @@ def init_language_model_clients(
     ],
 ) -> None:
     if language_model_name in (
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0125",
         "text-davinci-003",
         "Mixtral-8x7B-Instruct-v0.1",
         "Mistral-7B-Instruct-v0.2",
