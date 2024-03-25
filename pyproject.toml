@@ -44,6 +44,7 @@ dependencies = [
     "python-dotenv~=1.0",
     "python-terrier~=0.10.0",
     "requests~=2.31",
+    "sentence_transformers~=2.6.0",
     "tqdm~=4.64",
     "toml~=0.10.2",
     "torch~=2.0",
