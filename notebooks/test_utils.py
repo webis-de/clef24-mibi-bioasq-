@@ -10,6 +10,28 @@ from typing import List, Literal
 from test_templates import *
 
 
+import nltk
+from nltk.corpus import stopwords
+import string
+
+# nltk.download("punkt")
+# nltk.download("stopwords")
+
+
+def remove_stopwords_and_punctuation(text):
+    words = nltk.word_tokenize(text)
+
+    stop_words = set(stopwords.words("english"))
+    punctuation = set(string.punctuation)
+    filtered_words = [
+        word
+        for word in words
+        if word.lower() not in stop_words and word not in punctuation
+    ]
+    filtered_text = " ".join(filtered_words)
+    return filtered_text
+
+
 api_key = os.getenv("OPENAI_API_KEY")
 client = instructor.patch(OpenAI(api_key=api_key))
 
@@ -97,6 +119,7 @@ class PubMedApiRetrieve(DocumentsModule):
         # row: Dict[str, Any] = topic.to_dict(orient="records")[0]
 
         query: str = question.body
+        query = remove_stopwords_and_punctuation(query)
         query = query.lower()
         query = query.replace(" ", "+")
 
@@ -201,7 +224,10 @@ class PubMedApiRetrieve(DocumentsModule):
 def rerank_biencoder(question, retrieved):
     # embedder = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
     embedder = SentenceTransformer("tavakolih/all-MiniLM-L6-v2-pubmed-full")
-    x = retrieved.text.tolist()
+    x = [
+        " ".join(d[0] + d[1])
+        for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
+    ]
     corpus_embeddings = embedder.encode(
         x, convert_to_tensor=False
     )  # all-mpnet-base-v2 requires True
@@ -215,8 +241,32 @@ def rerank_biencoder(question, retrieved):
     return cos_scores
 
 
+def rerank_crossencoder(question, retrieved):
+    encoder = CrossEncoder("cross-encoder/msmarco-MiniLM-L6-en-de-v1", max_length=512)
+    # encoder = CrossEncoder("sentence-transformers/all-MiniLM-L6-v2")
+    # encoder = CrossEncoder('cross-encoder/msmarco-MiniLM-L12-en-de-v1', max_length=512)
+    # encoder = CrossEncoder("tavakolih/all-MiniLM-L6-v2-pubmed-full")
+    texts = [
+        " ".join(d[0] + d[1])
+        for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
+    ]
+    scores = encoder.predict([(question.body, text) for text in texts])
+    # combined = zip(scores, post)
+    # sorted_combined = sorted(combined, key=lambda x: x[0], reverse=True)
+    # _, reranked = zip(*sorted_combined)
+    return scores
+
+
 def get_offset(snippets, text):
-    return [re.search(snippet, text).span() for snippet in snippets if snippet]
+    offsets = []
+    for snippet in snippets:
+        if snippet:
+            try:
+                offset = re.search(snippet, text).span()
+            except Exception as e:
+                offset = ()
+        offsets.append(offset)
+    return offsets
 
 
 class YesNoExact(BaseModel):
@@ -342,5 +392,66 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
 
 
 def flat_list(l):
-    print([item for sublist in l for item in sublist if item])
     return [item for sublist in l for item in sublist if item]
+
+
+api_key_blablador = os.getenv("BLABLADOR_API_KEY")
+client_blablador = instructor.patch(
+    OpenAI(
+        api_key=api_key_blablador,
+        base_url="https://helmholtz-blablador.fz-juelich.de:8000/v1/",
+    ),
+    # mode=instructor.Mode.MD_JSON,
+    mode=instructor.Mode.TOOLS,
+)
+
+
+def get_snippets_blablador(question: str, title: str, abstract: str, model):
+    submission = SNIPPET_TEMPLATE.format(
+        question=question, title=title, abstract=abstract
+    )
+    resp = client_blablador.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a world class system to extract relevant sentences from titles and abstracts answering questions",
+            },
+            {
+                "role": "user",
+                "content": "Extract from the title and abstract ONLY sentences of phrases that directly answer the question",
+            },
+            {
+                "role": "user",
+                "content": submission,
+            },
+        ],
+        temperature=0,
+        max_tokens=1000,
+    )
+    resp = resp.choices[0].message.content
+    matches1, matches2 = [], []
+    pattern1 = r"\[([^]]+)\]"
+
+    matches = re.findall(pattern1, resp)
+
+    list1 = matches[0].strip() if matches else []
+    list2 = matches[1].strip() if len(matches) > 1 else []
+
+    pattern2 = r'".*?"(?=,|$)'
+
+    try:
+        matches1 = re.findall(pattern2, list1)
+    except Exception as e:
+        matches1 = []
+    try:
+        matches2 = re.findall(pattern2, list2)
+    except Exception as e:
+        matches2 = []
+
+    if matches1:
+        matches1 = [m.strip('"') if "empty list" not in m else "" for m in matches1]
+    if matches2:
+        matches2 = [m.strip('"') if "empty list" not in m else "" for m in matches2]
+
+    return matches1, matches2
