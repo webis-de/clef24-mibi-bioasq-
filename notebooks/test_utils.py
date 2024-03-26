@@ -222,9 +222,12 @@ class PubMedApiRetrieve(DocumentsModule):
 
 
 def retrieve_bm25(query, corpus):
-    tokenized_corpus = [
-        remove_stopwords_and_punctuation(x).split() for x in corpus["text"].tolist()
+    x = [
+        " ".join(d[0] + d[1]) for d in zip(corpus.title.tolist(), corpus.text.tolist())
     ]
+    tokenized_corpus = [
+        remove_stopwords_and_punctuation(x).split() for x in x
+    ]  # corpus["text"].tolist()]
     bm25 = BM25Okapi(tokenized_corpus)
     tokenized_query = remove_stopwords_and_punctuation(query.body).lower().split(" ")
     return bm25.get_scores(tokenized_query)
@@ -238,12 +241,8 @@ def rerank_biencoder(question, retrieved):
     #     for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
     # ]
     x = retrieved.text.tolist()
-    corpus_embeddings = embedder.encode(
-        x, convert_to_tensor=False
-    )  # all-mpnet-base-v2 requires True
-    query_embedding = embedder.encode(
-        question.body, convert_to_tensor=False
-    )  # all-mpnet-base-v2 requires True
+    corpus_embeddings = embedder.encode(x, convert_to_tensor=False)
+    query_embedding = embedder.encode(question.body, convert_to_tensor=False)
     cos_scores = util.cos_sim(query_embedding, corpus_embeddings)[0]
     # combined = zip(cos_scores, x)
     # sorted_combined = sorted(combined, key=lambda x: x[0], reverse=True)
