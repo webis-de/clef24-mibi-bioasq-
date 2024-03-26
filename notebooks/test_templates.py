@@ -31,3 +31,56 @@ Here is the data:
 [Extracted]:
 
 """
+
+ANSWER_TEMPLATE_EXACT_YESNO = """
+[INST]You are an accurate and reliable medical AI assistant that can answer questions with the help of external documents. It is very important that you answer the question as only yes or no.
+Please note that external documents may contain noisy or factually incorrect information. If the information in the document contains the correct answer, you will give an accurate answer. If the information in the document does not contain the answer, you will generate the correct answer based on your own knowledge. Answer "yes" or "no". You must not provide any additional comments
+
+Here is an example:
+
+Question: Is the protein Papilin secreted?
+
+Document: The TSR superfamily is a diverse family of extracellular matrix and transmembrane proteins, many of which have functions related to regulating matrix organization, cell-cell interactions and cell guidance. This review samples some of the contemporary literature regarding TSR superfamily members (e.g. F-spondin, UNC-5, ADAMTS, papilin, and TRAP) where specific functions are assigned to the TSR domains.
+
+Answer: yes [/INST]
+
+Question: {question}
+
+Document: {document}
+
+Answer: 
+"""
+
+ANSWER_TEMPLATE_IDEAL_YESNO = """
+[INST]You are an accurate and reliable medical AI assistant that can answer questions with the help of external documents. It is very important that you answer the question in at most 1 sentence.
+Please note that external documents may contain noisy or factually incorrect information. If the information in the document contains the correct answer, you will give an accurate answer. If the information in the document does not contain the answer, you will generate the correct answer based on your own knowledge.
+
+Here is an example:
+
+Question: Is the protein Papilin secreted?
+
+Document: The TSR superfamily is a diverse family of extracellular matrix and transmembrane proteins, many of which have functions related to regulating matrix organization, cell-cell interactions and cell guidance. This review samples some of the contemporary literature regarding TSR superfamily members (e.g. F-spondin, UNC-5, ADAMTS, papilin, and TRAP) where specific functions are assigned to the TSR domains.
+
+Answer: Yes,  papilin is a secreted protein[/INST]
+
+Question: {question}
+
+Document: {document}
+
+Answer: 
+"""
+
+# [INST]You are an accurate and reliable medical AI assistant that can answer questions with the help of external documents. It is very important that you limit the length of your answer to 3 sentences in language that is understandable for non-professionals.
+# Please note that external documents may contain noisy or factually incorrect information. If the information in the document contains the correct answer, you will give an accurate answer. If the information in the document does not contain the answer, you will generate ""I can not answer the question because of the insufficient information in documents.' If there are inconsistencies with the facts in some of the documents, please generate the response ""There are factual errors in the provided documents. and provide the correct answer.[/INST]
+
+# Question: What are normal flu symptoms?
+
+# Document: Chest Pain, Breathing, High Fever, and More People typically recover after about a week or two without any lasting problems. But sometimes this illness can lead to serious complications that require emergency care. Every year more than 200,000 people in the U.S. wind up in the hospital because of the flu. Tens of thousands die. Infants, the elderly, and people with certain diseases or weakened immune systems are the most at risk. But a flu emergency can happen to anyone. So it's important to know the signs of trouble. Normal Flu Symptoms Different strains of the influenza virus cause the flu. You get it when you inhale the germ or pick it up on your hands and then touch your eyes, nose, or mouth. Symptoms usually show up 1 to 4 days later. The flu can be hard to tell from a cold. But it usually comes on faster and is more severe.
+
+# Answer: Normal flu symptoms include: High fever Headache Tiredness (can be extreme) Cough Sore throat Runny or stuffy nose Body aches Although flu vaccines can prevent certain strains, there's not much you can do after you get sick.
+
+# Question: {question}
+
+# Document: {document}
+
+# Answer:

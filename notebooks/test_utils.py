@@ -354,7 +354,7 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         temperature=0,
         response_model=response_model,
         messages=messages,
-        max_tokens=1000,
+        max_tokens=2000,
     )
 
     if q_type == "summary":
@@ -392,13 +392,67 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         temperature=0,
         response_model=response_model,
         messages=messages,
-        max_tokens=1000,
+        max_tokens=2000,
     )
 
     if q_type == "summary":
         return [" ".join(response.answer)]
     else:
         return [response.answer]
+
+
+def response_exact_answer_mistral(question, q_type, text_chunks, model):
+
+    response_model_dict = {
+        "yesno": ANSWER_TEMPLATE_EXACT_YESNO,
+        "list": ListExact,
+        "factoid": FactoidExact,
+        "summary": Summary,
+    }
+
+    TEMPLATE = response_model_dict[q_type]
+    submission = TEMPLATE.format(question=question, document=text_chunks)
+
+    resp = client_blablador.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": submission,
+            },
+        ],
+        temperature=0,
+        max_tokens=100,
+    )
+    resp = resp.choices[0].message.content
+    return resp
+
+
+def response_ideal_answer_mistral(question, q_type, text_chunks, model):
+
+    response_model_dict = {
+        "yesno": ANSWER_TEMPLATE_IDEAL_YESNO,
+        "list": ListExact,
+        "factoid": FactoidExact,
+        "summary": Summary,
+    }
+
+    TEMPLATE = response_model_dict[q_type]
+    submission = TEMPLATE.format(question=question, document=text_chunks)
+
+    resp = client_blablador.chat.completions.create(
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": submission,
+            },
+        ],
+        temperature=0,
+        max_tokens=1000,
+    )
+    resp = resp.choices[0].message.content
+    return resp
 
 
 def flat_list(l):
