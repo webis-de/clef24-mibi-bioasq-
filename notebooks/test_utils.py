@@ -327,7 +327,6 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
     response_model = response_model_dict[q_type]
 
     # answer_type = answer_type_dict[q_type]
-
     messages = [
         {
             "role": "system",
@@ -369,36 +368,73 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         response_model = Summary
     else:
         response_model = IdealAnswer
+    try:
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a medical doctor answering real-world medical entrance exam questions.",
+            },
+            {
+                "role": "system",
+                "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
+            },
+            {
+                "role": "system",
+                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
+            },
+            {"role": "system", "content": f"Context: {text_chunks}"},
+            {"role": "user", "content": f"Question: {query}"},
+        ]
 
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a medical doctor answering real-world medical entrance exam questions.",
-        },
-        {
-            "role": "system",
-            "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
-        },
-        {
-            "role": "system",
-            "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
-        },
-        {"role": "system", "content": f"Context: {text_chunks}"},
-        {"role": "user", "content": f"Question: {query}"},
-    ]
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo-0613",
+            temperature=0,
+            response_model=response_model,
+            messages=messages,
+            max_tokens=1750,
+        )
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo-0613",
-        temperature=0,
-        response_model=response_model,
-        messages=messages,
-        max_tokens=1750,
-    )
+        if q_type == "summary":
+            return [" ".join(response.answer)]
+        else:
+            return [response.answer]
 
-    if q_type == "summary":
-        return [" ".join(response.answer)]
-    else:
-        return [response.answer]
+    except:
+        print("Trying another way")
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a medical doctor answering real-world medical entrance exam questions.",
+            },
+            {
+                "role": "system",
+                "content": "Based on your understanding of basic and clinical science, medical knowledge, and mechanisms underlying health, disease, patient care, and modes of therapy, answer the following question.",
+            },
+            {
+                "role": "system",
+                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
+            },
+            {
+                "role": "system",
+                "content": "The ideal answer to the question in one longer sentence that also contains a short explanation. The ideal answer is grammatically complete with subjects, objects, and predicates, is concise and precise.",
+            },
+            {"role": "system", "content": f"Context: {text_chunks}"},
+            {"role": "user", "content": f"Question: {query}"},
+        ]
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo-0613",
+            temperature=0,
+            # response_model=response_model,
+            messages=messages,
+            max_tokens=1750,
+        )
+        # print(response.choices[0].message.content)
+
+        if q_type == "summary":
+            return [" ".join(response.choices[0].message.content)]
+        else:
+            return [response.choices[0].message.content]
 
 
 def response_exact_answer_mistral(question, q_type, text_chunks, model):
