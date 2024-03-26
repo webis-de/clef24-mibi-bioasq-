@@ -280,12 +280,13 @@ def get_offset(snippets, text):
 
 
 class YesNoExact(BaseModel):
-    answer: Literal["yes", "no"]
+    answer: List[Literal["yes", "no"]]
 
 
 class ListExact(BaseModel):
     answer: List[List[str]] = Field(
-        ..., description="List of lists with single entities"
+        ...,
+        description="List of lists with single entities, each inside list contains only one entity, maximum 5 inside lists, no synonyms",
     )
 
 
@@ -313,12 +314,8 @@ class IdealAnswer(BaseModel):
 
 def response_exact_answer(query: str, q_type: str, text_chunks: str):
 
-    # answer_type_dict = {
-    #     "yesno": "only yes or no",
-    #     "list": "a python list of lists with entities",
-    #     "factoid": "a very short fact only a single entity included in a Python list with one element",
-    #     "summary": "a summary of the retrieved context in 2 or 3 sentences included in a Python list with one element"
-    # }
+    text_chunks = text_chunks.split()[:1000]
+    text_chunks = " ".join(text_chunks)
 
     response_model_dict = {
         "yesno": YesNoExact,
@@ -354,7 +351,7 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         temperature=0,
         response_model=response_model,
         messages=messages,
-        max_tokens=2000,
+        max_tokens=1750,
     )
 
     if q_type == "summary":
@@ -364,6 +361,9 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
 
 
 def response_ideal_answer(query: str, q_type: str, text_chunks: str):
+
+    text_chunks = text_chunks.split()[:1000]
+    text_chunks = " ".join(text_chunks)
 
     if q_type == "summary":
         response_model = Summary
@@ -392,7 +392,7 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         temperature=0,
         response_model=response_model,
         messages=messages,
-        max_tokens=2000,
+        max_tokens=1750,
     )
 
     if q_type == "summary":
