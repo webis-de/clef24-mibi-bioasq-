@@ -3,9 +3,10 @@ import instructor
 from openai import OpenAI
 from pydantic import BaseModel, Field
 import re
+from rank_bm25 import BM25Okapi
 from sentence_transformers import CrossEncoder, SentenceTransformer, util
 from typing import List, Literal
-
+import time
 
 from test_templates import *
 
@@ -119,7 +120,6 @@ class PubMedApiRetrieve(DocumentsModule):
         # row: Dict[str, Any] = topic.to_dict(orient="records")[0]
 
         query: str = question.body
-        query = remove_stopwords_and_punctuation(query)
         query = query.lower()
         query = query.replace(" ", "+")
 
@@ -190,7 +190,7 @@ class PubMedApiRetrieve(DocumentsModule):
                     "url": f"https://pubmed.ncbi.nlm.nih.gov/{doc_id}/",
                 }
             )
-
+        time.sleep(1)
         return DataFrame(results)
 
     def transform(self, questions: List[Question]) -> DataFrame:
@@ -221,13 +221,23 @@ class PubMedApiRetrieve(DocumentsModule):
         return retrieved
 
 
-def rerank_biencoder(question, retrieved):
-    # embedder = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
-    embedder = SentenceTransformer("tavakolih/all-MiniLM-L6-v2-pubmed-full")
-    x = [
-        " ".join(d[0] + d[1])
-        for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
+def retrieve_bm25(query, corpus):
+    tokenized_corpus = [
+        remove_stopwords_and_punctuation(x).split() for x in corpus["text"].tolist()
     ]
+    bm25 = BM25Okapi(tokenized_corpus)
+    tokenized_query = remove_stopwords_and_punctuation(query.body).lower().split(" ")
+    return bm25.get_scores(tokenized_query)
+
+
+def rerank_biencoder(question, retrieved):
+    embedder = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+    # embedder = SentenceTransformer("tavakolih/all-MiniLM-L6-v2-pubmed-full")
+    # x = [
+    #     " ".join(d[0] + d[1])
+    #     for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
+    # ]
+    x = retrieved.text.tolist()
     corpus_embeddings = embedder.encode(
         x, convert_to_tensor=False
     )  # all-mpnet-base-v2 requires True
@@ -246,10 +256,11 @@ def rerank_crossencoder(question, retrieved):
     # encoder = CrossEncoder("sentence-transformers/all-MiniLM-L6-v2")
     # encoder = CrossEncoder('cross-encoder/msmarco-MiniLM-L12-en-de-v1', max_length=512)
     # encoder = CrossEncoder("tavakolih/all-MiniLM-L6-v2-pubmed-full")
-    texts = [
-        " ".join(d[0] + d[1])
-        for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
-    ]
+    # texts = [
+    #     " ".join(d[0] + d[1])
+    #     for d in zip(retrieved.title.tolist(), retrieved.text.tolist())
+    # ]
+    texts = retrieved.text.tolist()
     scores = encoder.predict([(question.body, text) for text in texts])
     # combined = zip(scores, post)
     # sorted_combined = sorted(combined, key=lambda x: x[0], reverse=True)
