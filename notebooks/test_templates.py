@@ -43,6 +43,31 @@ Question: Is the protein Papilin secreted?
 Document: The TSR superfamily is a diverse family of extracellular matrix and transmembrane proteins, many of which have functions related to regulating matrix organization, cell-cell interactions and cell guidance. This review samples some of the contemporary literature regarding TSR superfamily members (e.g. F-spondin, UNC-5, ADAMTS, papilin, and TRAP) where specific functions are assigned to the TSR domains.
 
 Answer: yes [/INST]
+******************
+
+Here is the data:
+
+Question: {question}
+
+Document: {document}
+
+Answer: 
+"""
+
+ANSWER_TEMPLATE_EXACT_LIST = """
+[INST]You are an accurate and reliable medical AI assistant that can answer questions with the help of external documents. It is very important that you answer the question as a List of lists with single entities, each inside list contains only one entity, maximum 5 inside lists, no synonyms.
+Please note that external documents may contain noisy or factually incorrect information. If the information in the document contains the correct answer, you will give an accurate answer. If the information in the document does not contain the answer, you will generate the correct answer based on your own knowledge. Answer as a List of lists with single entities, each inside list contains only one entity, maximum 5 inside lists, no synonyms. You must not provide any additional comments.
+
+Here is an example:
+
+Question: List signaling molecules (ligands) that interact with the receptor EGFR?
+
+Document: the epidermal growth factor receptor (EGFR) ligands, such as epidermal growth factor (EGF) and amphiregulin (AREG). EGFR ligands epidermal growth factor (EGF), amphiregulin (AREG) and transforming growth factor alpha (TGF\u03b1). Among EGFR ligands, heparin-binding EGF-like growth factor, TGF-\u03b1 and Betacellulin (BTC) are produced in the tumor microenvironment of FDC-S at RNA level. Plasma amphiregulin (AR), epidermal growth factor (EGF), transforming growth factor-\u03b1, and heparin binding-EGF were assessed by ELISA in 45 chemorefractory mCRC patients
+
+Answer: [["epidermal growth factor"], ["betacellulin"], ["epiregulin"], ["transforming growth factor-\u03b1"], ["amphiregulin"]] [/INST]
+******************
+
+Here is the data:
 
 Question: {question}
 
