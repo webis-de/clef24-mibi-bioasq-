@@ -76,6 +76,9 @@ def pubmed(
     elasticsearch = Elasticsearch(
         hosts=elasticsearch_url,
         http_auth=elasticsearch_auth,
+        request_timeout=60,
+        read_timeout=60,
+        max_retries=10,
     )
     articles: Iterable[Article]
     if force:

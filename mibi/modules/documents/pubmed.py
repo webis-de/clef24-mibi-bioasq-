@@ -1,14 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
-from itertools import chain
+from functools import cache
+from gzip import open as gzip_open
 from pathlib import Path
-from typing import Callable, Iterator, Iterable, Sized
+from re import compile as re_compile
+from typing import Callable, Collection, Iterator, Iterable, Sized
+from warnings import warn
 
 from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl import Document, Date, Text, Keyword, InnerDoc, Nested
 from elasticsearch7_dsl.aggs import Terms
 from joblib import Memory
-from lxml.etree import parse  # nosec: B410
+from lxml.etree import iterparse, _Element as Element  # nosec: B410
 from pubmed_parser import parse_medline_xml
 from tqdm.auto import tqdm
 
@@ -52,6 +55,131 @@ class MeshTerm(InnerDoc):
     """MeSH ID"""
     term: str = Keyword()  # type: ignore
     qualifiers: list[str] = Keyword()  # type: ignore
+
+
+def _parse_required(value: str) -> str:
+    if len(value) == 0:
+        raise RuntimeError("String must not be empty.")
+    return value
+
+
+def _parse_optional(value: str) -> str | None:
+    if len(value) == 0:
+        return None
+    return value
+
+
+def _parse_list(value: str) -> list[str]:
+    if len(value) == 0:
+        return []
+    return [item.strip() for item in value.split("; ")]
+
+
+_PATTERN_ORCID = re_compile(
+    r"(?:"
+    r"https?:\/\/:?(?:www\.)?orcid\.org\/\/?"
+    r"|"
+    r"%20|s|\""
+    r")?"
+    r"(?:"
+    r"(?P<part1>[0-9]{4})[- ]"
+    r"(?P<part2>[0-9]{4})[- ]"
+    r"(?P<part3>[0-9]{4})[- ]"
+    r"(?P<part4>[0-9]{3}[0-9Xx]?)"
+    r"|"
+    r"(?P<part1_alt>[0-9]{4})"
+    r"(?P<part2_alt>[0-9]{4})"
+    r"(?P<part3_alt>[0-9]{4})"
+    r"(?P<part4_alt>[0-9]{3}[0-9Xx]?)"
+    r")"
+    r"(?:"  # Suffix
+    r"\/"
+    r")?"
+)
+
+
+def _parse_orcid(value: str) -> str | None:
+    value = value.replace("​", "").strip()
+    if len(value) == 0:
+        return None
+    match = _PATTERN_ORCID.fullmatch(value)
+    if match is None:
+        warn(RuntimeWarning(
+            f"Could not parse author identifier: {value}"))
+        return None
+    groups = match.groupdict()
+    part1: str
+    part2: str
+    part3: str
+    part4: str
+    if groups["part1_alt"] is not None:
+        part1 = groups["part1_alt"]
+        part2 = groups["part2_alt"]
+        part3 = groups["part3_alt"]
+        part4 = groups["part4_alt"]
+        part4 = part4.ljust(4, "X")
+    else:
+        part1 = groups["part1"]
+        part2 = groups["part2"]
+        part3 = groups["part3"]
+        part4 = groups["part4"]
+        if part1 is None:
+            part1 = "0000"
+        part1 = part1.rjust(4, "0")
+        part2 = part2.rjust(4, "0")
+        part3 = part3.rjust(4, "0")
+        part4 = part4.ljust(4, "X")
+    for part in (part1, part2, part3, part4):
+        if part is None or len(part) != 4:
+            warn(RuntimeWarning(
+                f"Could not parse author identifier: {value}"))
+            return None
+    return f"{part1}-{part2}-{part3}-{part4}".upper()
+
+
+def _parse_authors(values: list[dict[str, str]]) -> list[Author]:
+    return [
+        Author(
+            lastname=_parse_optional(author["lastname"]),
+            forename=_parse_optional(author["forename"]),
+            initials=_parse_optional(author["initials"]),
+            orcid=_parse_orcid(author["identifier"]),
+            affiliation=_parse_optional(author["affiliation"]),
+        )
+        for author in values
+    ]
+
+
+def _parse_mesh_terms(value: str) -> list[MeshTerm]:
+    if len(value) == 0:
+        return []
+    mesh_terms_split: Iterable[list[str]] = (
+        mesh_term.strip().split(":", maxsplit=1)
+        for mesh_term in value.split("; ")
+    )
+    mesh_terms: list[MeshTerm] = []
+    for mesh_id_term in mesh_terms_split:
+        if len(mesh_id_term) == 1 and len(mesh_terms) > 0:
+            mesh_terms[-1].qualifiers.append(mesh_id_term[0])
+        else:
+            mesh_id, term = mesh_id_term
+            mesh_terms.append(MeshTerm(
+                mesh_id=mesh_id.strip(),
+                term=term.strip(),
+                qualifiers=[],
+            ))
+    return mesh_terms
+
+
+def _parse_date(value: str) -> datetime:
+    if value.count("-") == 0:
+        return datetime.strptime(value, "%Y")
+    elif value.count("-") == 1:
+        return datetime.strptime(value, "%Y-%m")
+    elif value.count("-") == 2:
+        return datetime.strptime(value, "%Y-%m-%d")
+    else:
+        raise RuntimeError(f"Unsupported date format: {value}")
 
 
 class Article(Document):
@@ -122,120 +250,30 @@ class Article(Document):
             return None
         return f"https://doi.org/{self.doi}"
 
-    @staticmethod
-    def _parse_required(value: str) -> str:
-        if len(value) == 0:
-            raise RuntimeError("String must not be empty.")
-        return value
-
-    @staticmethod
-    def _parse_optional(value: str) -> str | None:
-        if len(value) == 0:
-            return None
-        return value
-
-    @staticmethod
-    def _parse_list(value: str) -> list[str]:
-        if len(value) == 0:
-            return []
-        return [item.strip() for item in value.split("; ")]
-
-    @staticmethod
-    def _parse_orcid(value: str) -> str | None:
-        if len(value) == 0:
-            return None
-        for prefix in (
-            "http://orcid.org/",
-            "https://orcid.org/",
-            "http//:www.orcid.org/",
-            "https//:www.orcid.org/",
-            "%20",
-            "s",
-        ):
-            if value.startswith(prefix):
-                value = value.removeprefix(prefix)
-                break
-        if len(value) == 19 and value.count("-") == 3:
-            return value
-        if len(value) == 18 and value.count("-") == 3:
-            return f"{value}X"
-        if len(value) == 16 and (
-            value.isnumeric() or (
-                value[:15].isnumeric() and value[15] == "X")):
-            return f"{value[0:4]}-{value[4:8]}-{value[8:12]}-{value[12:16]}"
-        raise RuntimeError(f"Could not parse author identifier: {value}")
-
-    @staticmethod
-    def _parse_authors(values: list[dict[str, str]]) -> list[Author]:
-        return [
-            Author(
-                lastname=Article._parse_optional(author["lastname"]),
-                forename=Article._parse_optional(author["forename"]),
-                initials=Article._parse_optional(author["initials"]),
-                orcid=Article._parse_orcid(author["identifier"]),
-                affiliation=Article._parse_optional(author["affiliation"]),
-            )
-            for author in values
-        ]
-
-    @staticmethod
-    def _parse_mesh_terms(value: str) -> list[MeshTerm]:
-        if len(value) == 0:
-            return []
-        mesh_terms_split: Iterable[list[str]] = (
-            mesh_term.strip().split(":", maxsplit=1)
-            for mesh_term in value.split("; ")
-        )
-        mesh_terms: list[MeshTerm] = []
-        for mesh_id_term in mesh_terms_split:
-            if len(mesh_id_term) == 1 and len(mesh_terms) > 0:
-                mesh_terms[-1].qualifiers.append(mesh_id_term[0])
-            else:
-                mesh_id, term = mesh_id_term
-                mesh_terms.append(MeshTerm(
-                    mesh_id=mesh_id.strip(),
-                    term=term.strip(),
-                    qualifiers=[],
-                ))
-        return mesh_terms
-
-    @staticmethod
-    def _parse_date(value: str) -> datetime:
-        if value.count("-") == 0:
-            return datetime.strptime(value, "%Y")
-        elif value.count("-") == 1:
-            return datetime.strptime(value, "%Y-%m")
-        elif value.count("-") == 2:
-            return datetime.strptime(value, "%Y-%m-%d")
-        else:
-            raise RuntimeError(f"Unsupported date format: {value}")
-
     @classmethod
     def parse(cls, article: dict, path: Path) -> "Article | None":
         if article["delete"]:
             return None
-        pubmed_id = cls._parse_required(article["pmid"])
-        pmc_id = cls._parse_optional(article["pmc"])
-        doi = cls._parse_optional(article["doi"])
-        other_ids = cls._parse_list(article["other_id"])
-        title = cls._parse_optional(article["title"])
-        abstract = cls._parse_optional(article["abstract"])
-        authors = cls._parse_authors(article["authors"])
-        mesh_terms: list[MeshTerm] = cls._parse_mesh_terms(
-            article["mesh_terms"])
-        publication_types: list[MeshTerm] = cls._parse_mesh_terms(
+        pubmed_id = _parse_required(article["pmid"])
+        pmc_id = _parse_optional(article["pmc"])
+        doi = _parse_optional(article["doi"])
+        other_ids = _parse_list(article["other_id"])
+        title = _parse_optional(article["title"])
+        abstract = _parse_optional(article["abstract"])
+        authors = _parse_authors(article["authors"])
+        mesh_terms: list[MeshTerm] = _parse_mesh_terms(article["mesh_terms"])
+        publication_types: list[MeshTerm] = _parse_mesh_terms(
             article["publication_types"])
-        keywords = cls._parse_list(article["keywords"])
-        chemicals: list[MeshTerm] = cls._parse_mesh_terms(
-            article["chemical_list"])
-        publication_date = cls._parse_date(article["pubdate"])
-        journal = cls._parse_optional(article["journal"])
-        journal_abbreviation = cls._parse_optional(article["medline_ta"])
-        nlm_id = cls._parse_required(article["nlm_unique_id"])
-        issn = cls._parse_optional(article["issn_linking"])
-        country = cls._parse_optional(article["country"])
-        references_pubmed_ids = cls._parse_list(article.get("reference", ""))
-        languages = cls._parse_list(article.get("languages", ""))
+        keywords = _parse_list(article["keywords"])
+        chemicals: list[MeshTerm] = _parse_mesh_terms(article["chemical_list"])
+        publication_date = _parse_date(article["pubdate"])
+        journal = _parse_optional(article["journal"])
+        journal_abbreviation = _parse_optional(article["medline_ta"])
+        nlm_id = _parse_required(article["nlm_unique_id"])
+        issn = _parse_optional(article["issn_linking"])
+        country = _parse_optional(article["country"])
+        references_pubmed_ids = _parse_list(article.get("reference", ""))
+        languages = _parse_list(article.get("languages", ""))
         return Article(
             meta={"id": pubmed_id},
             pubmed_id=pubmed_id,
@@ -261,18 +299,38 @@ class Article(Document):
         )
 
 
-def _pmids(path: Path) -> Iterator[str]:
-    print(f"Find PubMed IDs in: {path}")
-    root = parse(path, parser=None)  # nosec: B320
-    pmid_results = chain(
-        root.iterfind(".//PubmedArticle/MedlineCitation/PMID"),
-        root.iterfind(
-            ".//PubmedArticle/PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]"),
-    )
-    for pmid in pmid_results:
-        pmid_text = pmid.text
-        if pmid_text is not None:
-            yield pmid_text
+def _iter_pmids(path: Path) -> Iterator[str]:
+    with gzip_open(path, "rb") as file:
+        context = iterparse(
+            source=file,
+            tag="PubmedArticle",
+        )
+        element: Element
+        for _, element in context:
+            for xpath in (
+                "./MedlineCitation/PMID",
+                "./PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]",
+            ):
+                pmid_element: Element | None = element.find(
+                    path=xpath,
+                    namespaces=None,
+                )
+                if pmid_element is None:
+                    break
+                pmid_text: str | None = pmid_element.text
+                if pmid_text is None:
+                    break
+                yield pmid_text.strip()
+                break
+            element.clear(keep_tail=False)
+
+
+@_memory.cache
+def _pmids_cached(path: Path) -> Collection[str]:
+    return list(_iter_pmids(path))
+
+
+_pmids: Callable[[Path], Collection[str]] = _pmids_cached  # type: ignore
 
 
 @_memory.cache
@@ -285,7 +343,7 @@ _count: Callable[[Path], int] = _count_cached  # type: ignore
 
 @_memory.cache
 def _count_unique_cached(path: Path) -> int:
-    return len(set(_pmids(path)))
+    return len(set(hash(pmid) for pmid in _pmids(path)))
 
 
 _count_unique: Callable[[Path], int] = _count_unique_cached  # type: ignore
@@ -322,6 +380,7 @@ class PubMedBaseline(Iterable[Article], Sized):
                 continue
             yield parsed
 
+    @cache
     def _paths(self) -> list[Path]:
         return list(self.directory.glob("pubmed*n*.xml.gz"))
 
@@ -329,8 +388,16 @@ class PubMedBaseline(Iterable[Article], Sized):
         for path in self._paths():
             yield from self._parse_articles(path)
 
+    @cache
     def __len__(self) -> int:
-        return sum(_count(path) for path in self._paths())
+        return sum(
+            _count(path)
+            for path in tqdm(
+                self._paths(),
+                desc="Count articles",
+                unit="path",
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -338,6 +405,7 @@ class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
     client: Elasticsearch
     index: str | None = None
 
+    @cache
     def _paths(self) -> list[Path]:
         paths = super()._paths()
         if len(paths) == 0:
@@ -362,6 +430,10 @@ class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
 
         return [
             path
-            for path in paths
+            for path in tqdm(
+                paths,
+                desc="Filter paths",
+                unit="path",
+            )
             if source_file_counts.get(path.name, 0) < _count_unique(path)
         ]
