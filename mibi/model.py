@@ -36,13 +36,18 @@ Document: TypeAlias = PubMedUrl
 
 Documents: TypeAlias = Annotated[
     Sequence[Document],
-    Len(min_length=1),
+    Len(min_length=1, max_length=10),
 ]
 
 
 class Snippet(BaseModel):
     document: Document = Field(frozen=True)
     text: str = Field(frozen=True)
+    begin_section: str = Field(
+        frozen=True,
+        validation_alias=AliasChoices("begin_section", "beginSection"),
+        serialization_alias="beginSection",
+    )
     offset_in_begin_section: Annotated[
         int,
         Ge(0),
@@ -51,6 +56,11 @@ class Snippet(BaseModel):
         validation_alias=AliasChoices(
             "offset_in_begin_section", "offsetInBeginSection"),
         serialization_alias="offsetInBeginSection",
+    )
+    end_section: str = Field(
+        frozen=True,
+        validation_alias=AliasChoices("end_section", "endSection"),
+        serialization_alias="endSection",
     )
     offset_in_end_section: Annotated[
         int,
@@ -61,21 +71,11 @@ class Snippet(BaseModel):
             "offset_in_end_section", "offsetInEndSection"),
         serialization_alias="offsetInEndSection",
     )
-    begin_section: str = Field(
-        frozen=True,
-        validation_alias=AliasChoices("begin_section", "beginSection"),
-        serialization_alias="beginSection",
-    )
-    end_section: str = Field(
-        frozen=True,
-        validation_alias=AliasChoices("end_section", "endSection"),
-        serialization_alias="endSection",
-    )
 
 
 Snippets: TypeAlias = Annotated[
     Sequence[Snippet],
-    Len(min_length=1),
+    Len(min_length=1, max_length=10),
 ]
 
 YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
