@@ -1,17 +1,15 @@
 from dataclasses import dataclass
 from datetime import datetime
-from functools import cache
-from gzip import open as gzip_open
+from functools import cached_property
 from pathlib import Path
+from random import shuffle
 from re import compile as re_compile
-from typing import Callable, Collection, Iterator, Iterable, Sized
+from typing import Iterator, Iterable, Sized
 from warnings import warn
 
 from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl import Document, Date, Text, Keyword, InnerDoc, Nested
-from elasticsearch7_dsl.aggs import Terms
 from joblib import Memory
-from lxml.etree import iterparse, _Element as Element  # nosec: B410
 from pubmed_parser import parse_medline_xml
 from tqdm.auto import tqdm
 
@@ -299,56 +297,6 @@ class Article(Document):
         )
 
 
-def _iter_pmids(path: Path) -> Iterator[str]:
-    with gzip_open(path, "rb") as file:
-        context = iterparse(
-            source=file,
-            tag="PubmedArticle",
-        )
-        element: Element
-        for _, element in context:
-            for xpath in (
-                "./MedlineCitation/PMID",
-                "./PubmedData/ArticleIdList/ArticleId[@IdType=\"pmid\"]",
-            ):
-                pmid_element: Element | None = element.find(
-                    path=xpath,
-                    namespaces=None,
-                )
-                if pmid_element is None:
-                    break
-                pmid_text: str | None = pmid_element.text
-                if pmid_text is None:
-                    break
-                yield pmid_text.strip()
-                break
-            element.clear(keep_tail=False)
-
-
-@_memory.cache
-def _pmids_cached(path: Path) -> Collection[str]:
-    return list(_iter_pmids(path))
-
-
-_pmids: Callable[[Path], Collection[str]] = _pmids_cached  # type: ignore
-
-
-@_memory.cache
-def _count_cached(path: Path) -> int:
-    return sum(1 for _ in _pmids(path))
-
-
-_count: Callable[[Path], int] = _count_cached  # type: ignore
-
-
-@_memory.cache
-def _count_unique_cached(path: Path) -> int:
-    return len(set(hash(pmid) for pmid in _pmids(path)))
-
-
-_count_unique: Callable[[Path], int] = _count_unique_cached  # type: ignore
-
-
 @dataclass(frozen=True)
 class PubMedBaseline(Iterable[Article], Sized):
     directory: Path
@@ -380,60 +328,22 @@ class PubMedBaseline(Iterable[Article], Sized):
                 continue
             yield parsed
 
-    @cache
+    @cached_property
     def _paths(self) -> list[Path]:
-        return list(self.directory.glob("pubmed*n*.xml.gz"))
+        paths = list(self.directory.glob("pubmed*n*.xml.gz"))
+        shuffle(paths)
+        return paths
 
     def __iter__(self) -> Iterator[Article]:
-        for path in self._paths():
+        for path in tqdm(
+            self._paths,
+            desc="Parse articles",
+            unit="path",
+        ):
             yield from self._parse_articles(path)
-
-    @cache
-    def __len__(self) -> int:
-        return sum(
-            _count(path)
-            for path in tqdm(
-                self._paths(),
-                desc="Count articles",
-                unit="path",
-            )
-        )
 
 
 @dataclass(frozen=True)
 class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
     client: Elasticsearch
     index: str | None = None
-
-    @cache
-    def _paths(self) -> list[Path]:
-        paths = super()._paths()
-        if len(paths) == 0:
-            return paths
-
-        print(
-            f"Fetching indexed counts from Elasticsearch index: {self.index}")
-        source_file_search = Article.search(
-            using=self.client,
-            index=self.index,
-        )
-        source_file_search.aggs.bucket(
-            name="source_file",
-            agg_type=Terms(field="source_file")
-        )
-        source_file_buckets = source_file_search.execute()\
-            .aggs.source_file.buckets
-        source_file_counts: dict[str, int] = {
-            str(bucket.key): int(str(bucket.doc_count))
-            for bucket in source_file_buckets
-        }
-
-        return [
-            path
-            for path in tqdm(
-                paths,
-                desc="Filter paths",
-                unit="path",
-            )
-            if source_file_counts.get(path.name, 0) < _count_unique(path)
-        ]
