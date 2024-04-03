@@ -45,22 +45,15 @@ def index() -> None:
     envvar="ELASTICSEARCH_INDEX_PUBMED",
     required=True,
 )
-@option(
-    "-f", "--force",
-    type=bool,
-    is_flag=True,
-    default=False,
-)
 def pubmed(
     pubmed_baseline_path: Path,
     elasticsearch_url: str,
     elasticsearch_username: str | None,
     elasticsearch_password: str | None,
     elasticsearch_index: str,
-    force: bool,
 ) -> None:
     from elasticsearch7 import Elasticsearch
-    from mibi.modules.documents.pubmed import Article, PubMedBaseline, PubMedBaselineNonIndexedElasticsearch
+    from mibi.modules.documents.pubmed import Article, PubMedBaseline
     from mibi.utils.elasticsearch import ElasticsearchIndexer
 
     elasticsearch_auth: tuple[str, str] | None
@@ -80,15 +73,7 @@ def pubmed(
         read_timeout=60,
         max_retries=10,
     )
-    articles: Iterable[Article]
-    if force:
-        articles = PubMedBaseline(pubmed_baseline_path)
-    else:
-        articles = PubMedBaselineNonIndexedElasticsearch(
-            directory=pubmed_baseline_path,
-            client=elasticsearch,
-            index=elasticsearch_index,
-        )
+    articles: Iterable[Article] = PubMedBaseline(pubmed_baseline_path)
     indexer = ElasticsearchIndexer(
         document_type=Article,
         client=elasticsearch,

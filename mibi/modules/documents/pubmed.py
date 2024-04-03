@@ -298,7 +298,7 @@ class Article(Document):
 
 
 @dataclass(frozen=True)
-class PubMedBaseline(Iterable[Article], Sized):
+class PubMedBaseline(Iterable[Article]):
     directory: Path
 
     def __post_init__(self):
@@ -341,9 +341,3 @@ class PubMedBaseline(Iterable[Article], Sized):
             unit="path",
         ):
             yield from self._parse_articles(path)
-
-
-@dataclass(frozen=True)
-class PubMedBaselineNonIndexedElasticsearch(PubMedBaseline):
-    client: Elasticsearch
-    index: str | None = None
