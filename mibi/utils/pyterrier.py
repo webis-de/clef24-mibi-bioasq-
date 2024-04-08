@@ -132,7 +132,7 @@ class PyTerrierModule(Generic[_T], ABC):
 
 
 @dataclass(frozen=True)
-class ExportTransformer(Transformer):
+class ExportDocumentsTransformer(Transformer):
     path: Path
 
     def __post_init__(self):
@@ -154,6 +154,42 @@ class ExportTransformer(Transformer):
             sort=False,
         ):
             query_path = self.path / f"{qid}.csv"
-            res.to_csv(query_path)
+            res.assign(
+                questionno=res["qid"],
+                question=res["query"],
+                questiontype=res["query_type"],
+            ).to_csv(query_path)
+
+        return topics_or_res
+
+
+@dataclass(frozen=True)
+class ExportSnippetsTransformer(Transformer):
+    path: Path
+
+    def __post_init__(self):
+        self.path.mkdir(parents=True, exist_ok=True)
+
+    def _export(self, res: DataFrame) -> None:
+        return
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        if not isinstance(topics_or_res, DataFrame):
+            raise RuntimeError("Can only transform data frames.")
+        if not {"qid", "query", "query_type", "docno", "score", "rank", "title", "abstract", "text", "url", "snippet_begin_section", "snippet_offset_in_begin_section", "snippet_end_section", "snippet_offset_in_end_section"}.issubset(topics_or_res.columns):
+            raise RuntimeError(
+                "Expected qid, query, query_type, docno, score, rank, title, abstract, text, url, snippet_begin_section, snippet_offset_in_begin_section, snippet_end_section, and snippet_offset_in_end_section columns.")
+
+        for qid, res in topics_or_res.groupby(
+            by="qid",
+            as_index=False,
+            sort=False,
+        ):
+            query_path = self.path / f"{qid}.csv"
+            res.assign(
+                questionno=res["qid"],
+                question=res["query"],
+                questiontype=res["query_type"],
+            ).to_csv(query_path)
 
         return topics_or_res

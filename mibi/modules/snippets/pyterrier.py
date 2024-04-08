@@ -16,7 +16,6 @@ from mibi.utils.pyterrier import PyTerrierModule
 
 class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
     def parse(self, res: DataFrame) -> Snippets:
-        res.to_csv("test.csv")
         for col in (
             "text",
             "snippet_begin_section",

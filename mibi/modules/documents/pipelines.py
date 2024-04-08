@@ -9,7 +9,7 @@ from mibi import PROJECT_DIR
 from mibi.modules.documents.pubmed import Article
 from mibi.modules.documents.pyterrier import FoldSnippets
 from mibi.utils.elasticsearch_pyterrier import ElasticsearchTransformer
-from mibi.utils.pyterrier import ExportTransformer
+from mibi.utils.pyterrier import ExportDocumentsTransformer
 
 
 def build_documents_pipeline(
@@ -72,8 +72,11 @@ def build_documents_pipeline(
 
     # TODO: Re-rank documents.
 
+    # Cut off at 10 documents as per BioASQ requirements.
+    pipeline = pipeline % 10  # type: ignore
+
     # FIXME: Export documents temporarily, to manually import them to the answer generation stage.
-    pipeline = pipeline >> ExportTransformer(path=PROJECT_DIR / "data" / "documents")
+    pipeline = pipeline >> ExportDocumentsTransformer(path=PROJECT_DIR / "data" / "documents")
 
     return pipeline
 
