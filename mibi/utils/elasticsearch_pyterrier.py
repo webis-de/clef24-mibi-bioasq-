@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import islice
 from typing import Any, Callable, Generic, Hashable, Iterable, Type, TypeVar
+from warnings import warn
 
 from elasticsearch7 import Elasticsearch
-from elasticsearch7_dsl import Document
-from elasticsearch7_dsl.query import Query
+from elasticsearch7_dsl import Document, Search
+from elasticsearch7_dsl.query import Query, Terms
 from elasticsearch7_dsl.response import Hit
 from pandas import DataFrame, Series
 from pyterrier.model import add_ranks
@@ -29,32 +30,31 @@ class ElasticsearchRetrieve(Generic[T], Transformer):
     def _merge_result(
             self,
             row: dict[Hashable, Any],
-            hit: Hit
+            hit: Hit,
     ) -> dict[Hashable, Any]:
-        result: T = self.document_type.from_es(hit)
+        result: T = self.document_type()
+        result._from_dict(hit._source.to_dict())
         return {
             **row,
-            "docno": hit.meta.id,
-            "score": hit.meta.score,
+            "docno": hit._id,
+            "score": hit._score,
             **self.result_builder(result),
         }
 
     def _transform_query(self, topic: DataFrame) -> DataFrame:
-        if len(topic.index) != 1:
-            raise RuntimeError("Can only transform one query at a time.")
-
         row: Series = topic.iloc[0]
-        query = self.query_builder(row["query"])
 
-        search = self.document_type.search(using=self.client, index=self.index)
-        search.query(query)
+        search: Search = self.document_type.search(
+            using=self.client, index=self.index)
+        search = search.query(self.query_builder(row["query"]))
+        search = search.extra(size=self.num_results)
 
-        results: Iterable[Hit] = search.scan()
-        results = islice(results, self.num_results)
-
+        response = search.execute()
+        hits: Iterable[Hit] = response.hits.hits  # type: ignore
+        hits = islice(hits, self.num_results)
         return DataFrame([
-            self._merge_result(row.to_dict(), result)
-            for result in results
+            self._merge_result(row.to_dict(), hit)
+            for hit in hits
         ])
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
@@ -70,23 +70,92 @@ class ElasticsearchRetrieve(Generic[T], Transformer):
             as_index=False,
             sort=False,
         )
-        retrieved: DataFrame
         if self.verbose:
             tqdm.pandas(
-                desc="Searching with Elasticsearch",
+                desc="Retrieve with Elasticsearch",
                 unit="query",
             )
-            retrieved = topics_by_query.progress_apply(
+            topics_or_res = topics_by_query.progress_apply(
                 self._transform_query
             )  # type: ignore
         else:
-            retrieved = topics_by_query.apply(self._transform_query)
+            topics_or_res = topics_by_query.apply(self._transform_query)
 
-        retrieved = retrieved.reset_index(drop=True)
-        retrieved.sort_values(by=["score"], ascending=False)
-        retrieved = add_ranks(retrieved)
+        topics_or_res.reset_index(drop=True, inplace=True)
+        topics_or_res.sort_values(by=["qid", "score"], ascending=[
+                                  True, False], inplace=True)
+        topics_or_res = add_ranks(topics_or_res)
 
-        return retrieved
+        return topics_or_res
+
+
+@dataclass(frozen=True)
+class ElasticsearchRerank(Generic[T], Transformer):
+    document_type: Type[T]
+    client: Elasticsearch
+    query_builder: Callable[[str], Query]
+    index: str | None = None
+    verbose: bool = False
+
+    def _transform_query(self, res: DataFrame) -> DataFrame:
+        search: Search = self.document_type.search(
+            using=self.client, index=self.index)
+        search = search.query(self.query_builder(res.iloc[0]["query"]))
+        search = search.filter(Terms(_id=[
+            row["docno"]
+            for _, row in res.iterrows()
+        ]))
+        search = search.extra(size=len(res.index))
+        search = search.extra(_source=False)
+
+        response = search.execute()
+        hits: Iterable[Hit] = response.hits.hits  # type: ignore
+        scores = DataFrame([
+            {
+                "docno": hit._id,
+                "score": hit._score,
+            }
+            for hit in hits
+        ])
+
+        res = res.merge(scores, how="left", on="docno")
+        if res["score"].isna().sum() > 0:
+            not_reranked = res[res["score"].isna()]["docno"]
+            warn(RuntimeWarning(
+                f"Could not re-rank documents: {', '.join(not_reranked)}"))
+        res = res[res["score"].notna()]
+        return res
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        if not isinstance(topics_or_res, DataFrame):
+            raise RuntimeError("Can only transform data frames.")
+        if not {"qid", "query"}.issubset(topics_or_res.columns):
+            raise RuntimeError("Needs qid and query columns.")
+        if len(topics_or_res) == 0:
+            return topics_or_res
+
+        topics_by_query = topics_or_res.groupby(
+            by=["qid", "query"],
+            as_index=False,
+            sort=False,
+        )
+        if self.verbose:
+            tqdm.pandas(
+                desc="Re-rank with Elasticsearch",
+                unit="query",
+            )
+            topics_or_res = topics_by_query.progress_apply(
+                self._transform_query
+            )  # type: ignore
+        else:
+            topics_or_res = topics_by_query.apply(self._transform_query)
+
+        topics_or_res.reset_index(drop=True, inplace=True)
+        topics_or_res.sort_values(by=["qid", "score"], ascending=[
+                                  True, False], inplace=True)
+        topics_or_res.to_csv("test.csv")
+        topics_or_res = add_ranks(topics_or_res)
+        return topics_or_res
 
 
 @dataclass(frozen=True)
@@ -95,17 +164,39 @@ class ElasticsearchGet(Generic[T], Transformer):
     client: Elasticsearch
     result_builder: Callable[[T], dict[Hashable, Any]]
     index: str | None = None
+    verbose: bool = False
 
     def _merge_result(
             self,
             row: dict[Hashable, Any],
-            hit: Any
+            document: T
     ) -> dict[Hashable, Any]:
-        result: T = self.document_type.from_es(hit)
         return {
             **row,
-            **self.result_builder(result),
+            **self.result_builder(document),
         }
+
+    def _transform_query(self, res: DataFrame) -> DataFrame:
+        if not isinstance(res, DataFrame):
+            raise RuntimeError("Can only transform data frames.")
+        if "docno" not in res.columns:
+            raise RuntimeError("Needs docno column.")
+        if len(res) == 0:
+            return res
+
+        ids = {str(id) for id in res["docno"].to_list()}
+        sorted_ids = sorted(ids)
+        sorted_documents: list[T] = self.document_type.mget(
+            docs=sorted_ids,
+            using=self.client,
+            index=self.index,
+        )
+
+        documents: dict[str, T] = dict(zip(sorted_ids, sorted_documents))
+        return DataFrame([
+            self._merge_result(row.to_dict(), documents[row["docno"]])
+            for _, row in res.iterrows()
+        ])
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         if not isinstance(topics_or_res, DataFrame):
@@ -114,25 +205,31 @@ class ElasticsearchGet(Generic[T], Transformer):
             raise RuntimeError("Needs docno column.")
         if len(topics_or_res) == 0:
             return topics_or_res
+        if not {"qid", "query"}.issubset(topics_or_res.columns):
+            return self._transform_query(topics_or_res)
 
-        ids = {str(id) for id in topics_or_res["docno"].to_list()}
-        sorted_ids = sorted(ids)
-        sorted_documents = self.document_type.mget(
-            docs=sorted_ids,
-            using=self.client,
-            index=self.index,
+        topics_by_query = topics_or_res.groupby(
+            by=["qid", "query"],
+            as_index=False,
+            sort=False,
         )
+        if self.verbose:
+            tqdm.pandas(
+                desc="Get with Elasticsearch",
+                unit="query",
+            )
+            topics_or_res = topics_by_query.progress_apply(
+                self._transform_query
+            )  # type: ignore
+        else:
+            topics_or_res = topics_by_query.apply(self._transform_query)
 
-        documents = dict(zip(sorted_ids, sorted_documents))
-
-        return DataFrame([
-            self._merge_result(row.to_dict(), documents[row["docno"]])
-            for _, row in topics_or_res.iterrows()
-        ])
+        topics_or_res.reset_index(drop=True, inplace=True)
+        return topics_or_res
 
 
 @dataclass(frozen=True)
-class ElasticsearchRetrieveOrGet(Generic[T], Transformer):
+class ElasticsearchTransformer(Generic[T], Transformer):
     document_type: Type[T]
     client: Elasticsearch
     query_builder: Callable[[str], Query]
@@ -154,19 +251,30 @@ class ElasticsearchRetrieveOrGet(Generic[T], Transformer):
         )
 
     @cached_property
+    def _rerank(self) -> ElasticsearchRerank:
+        return ElasticsearchRerank(
+            document_type=self.document_type,
+            client=self.client,
+            query_builder=self.query_builder,
+            index=self.index,
+            verbose=self.verbose,
+        )
+
+    @cached_property
     def _get(self) -> ElasticsearchGet:
         return ElasticsearchGet(
             document_type=self.document_type,
             client=self.client,
             result_builder=self.result_builder,
             index=self.index,
+            verbose=self.verbose,
         )
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         if not isinstance(topics_or_res, DataFrame):
             raise RuntimeError("Can only transform data frames.")
         if "docno" in topics_or_res.columns:
-            return self._get.transform(topics_or_res)
+            return ((self._rerank >> self._get) ^ self._retrieve).transform(topics_or_res)
         if {"qid", "query"}.issubset(topics_or_res.columns):
             return self._retrieve.transform(topics_or_res)
         raise RuntimeError("Needs qid and query columns or docno column.")
