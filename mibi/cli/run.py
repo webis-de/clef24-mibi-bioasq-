@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from click import Choice, IntRange, echo, option, Path as PathType, argument, command
+from click import Choice, IntRange, UsageError, echo, option, Path as PathType, argument, command
 
 
 @command()
@@ -35,15 +35,17 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
     "-d", "--documents-module", "documents_module_type",
     type=Choice([
         "mock",
+        "pyterrier",
     ]),
-    default="mock",
+    default="pyterrier",
 )
 @option(
     "-s", "--snippets-module", "snippets_module_type",
     type=Choice([
         "mock",
+        "pyterrier",
     ]),
-    default="mock",
+    default="pyterrier",
 )
 @option(
     "-e", "--exact-answer-module", "exact_answer_module_type",
@@ -83,14 +85,36 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
     "-n", "--first", "--first-questions", "first_questions",
     type=IntRange(min=0),
 )
+@option(
+    "--elasticsearch-url",
+    type=str,
+    envvar="ELASTICSEARCH_URL",
+)
+@option(
+    "--elasticsearch-username",
+    type=str,
+    envvar="ELASTICSEARCH_USERNAME",
+)
+@option(
+    "--elasticsearch-password",
+    type=str,
+    envvar="ELASTICSEARCH_PASSWORD",
+)
+@option(
+    "--elasticsearch-index",
+    type=str,
+    envvar="ELASTICSEARCH_INDEX_PUBMED",
+)
 def run(
     input_path: Path,
     output_path: Path,
     documents_module_type: Literal[
         "mock",
+        "pyterrier",
     ],
     snippets_module_type: Literal[
         "mock",
+        "pyterrier",
     ],
     exact_answer_module_type: Literal[
         "mock",
@@ -111,7 +135,12 @@ def run(
         "Mistral-7B-Instruct-v0.2",
     ],
     first_questions: int | None,
+    elasticsearch_url: str | None,
+    elasticsearch_username: str | None,
+    elasticsearch_password: str | None,
+    elasticsearch_index: str | None,
 ) -> None:
+    from elasticsearch7 import Elasticsearch
     from mibi.model import AnsweredQuestion, AnsweredQuestionData, QuestionData
     from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
     from mibi.utils.language_models import init_language_model_clients
@@ -122,24 +151,66 @@ def run(
 
     init_language_model_clients(language_model_name)
 
+    elasticsearch_auth: tuple[str, str] | None
+    if elasticsearch_username is not None and elasticsearch_password is None:
+        raise UsageError("Must provide both username and password or none.")
+    elif elasticsearch_password is not None and elasticsearch_username is None:
+        raise UsageError("Must provide both password and username or none.")
+        raise UsageError("Must provide both password and username or none.")
+    elif elasticsearch_username is not None and elasticsearch_password is not None:
+        elasticsearch_auth = (elasticsearch_username, elasticsearch_password)
+    else:
+        elasticsearch_auth = None
+
+    elasticsearch = Elasticsearch(
+        hosts=elasticsearch_url,
+        http_auth=elasticsearch_auth,
+        request_timeout=60,
+        read_timeout=60,
+        max_retries=10,
+    ) if elasticsearch_url is not None else None
+
     documents_module: DocumentsModule
     if documents_module_type == "mock":
         from mibi.modules.mock import MockDocumentsModule
         documents_module = MockDocumentsModule()
+    elif documents_module_type == "pyterrier":
+        from mibi.modules.documents.pipelines import build_documents_pipeline
+        from mibi.modules.documents.pyterrier import PyTerrierDocumentsModule
+        if elasticsearch is None or elasticsearch_index is None:
+            raise UsageError("Must provide Elasticsearch URL and index.")
+        pipeline = build_documents_pipeline(
+            elasticsearch=elasticsearch,
+            index=elasticsearch_index,
+        )
+        documents_module = PyTerrierDocumentsModule(pipeline)
     else:
         raise ValueError("Unknown documents module type.")
+
     snippets_module: SnippetsModule
     if snippets_module_type == "mock":
         from mibi.modules.mock import MockSnippetsModule
         snippets_module = MockSnippetsModule()
+    elif snippets_module_type == "pyterrier":
+        from mibi.modules.snippets.pipelines import build_snippets_pipeline
+        from mibi.modules.snippets.pyterrier import PyTerrierSnippetsModule
+        if elasticsearch is None or elasticsearch_index is None:
+            raise UsageError("Must provide Elasticsearch URL and index.")
+        pipeline = build_snippets_pipeline(
+            elasticsearch=elasticsearch,
+            index=elasticsearch_index,
+        )
+        snippets_module = PyTerrierSnippetsModule(pipeline)
     else:
         raise ValueError("Unknown documents module type.")
+
     exact_answer_module: ExactAnswerModule
     if exact_answer_module_type == "mock":
         from mibi.modules.mock import MockExactAnswerModule
         exact_answer_module = MockExactAnswerModule()
     else:
         raise ValueError("Unknown documents module type.")
+
     ideal_answer_module: IdealAnswerModule
     if ideal_answer_module_type == "mock":
         from mibi.modules.mock import MockIdealAnswerModule
