@@ -7,6 +7,7 @@ from nltk import sent_tokenize
 from nltk.downloader import Downloader
 from pandas import DataFrame, Series, isna
 from pydantic_core import Url
+from pyterrier.model import add_ranks
 from pyterrier.transformer import Transformer
 
 from mibi.model import Snippet, Snippets
@@ -157,9 +158,9 @@ class FallbackRetrieveSnippets(Transformer):
             return topics_or_res
 
         topics_or_res = self.retrieve.transform(topics_or_res)
-        return DataFrame([
+        topics_or_res = DataFrame([
             {
-                **row,
+                **row[list(set(row.index) - {"text", "title", "abstract"})],
                 "text": snippet.text,
                 "snippet_begin_section": snippet.begin_section,
                 "snippet_offset_in_begin_section": snippet.offset_in_begin_section,
@@ -169,3 +170,6 @@ class FallbackRetrieveSnippets(Transformer):
             for _, row in topics_or_res.iterrows()
             for snippet in self._iter_snippets(row)
         ])
+
+        topics_or_res = add_ranks(topics_or_res)
+        return topics_or_res

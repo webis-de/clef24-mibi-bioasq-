@@ -176,9 +176,9 @@ class ExportSnippetsTransformer(Transformer):
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         if not isinstance(topics_or_res, DataFrame):
             raise RuntimeError("Can only transform data frames.")
-        if not {"qid", "query", "query_type", "docno", "score", "rank", "title", "abstract", "text", "url", "snippet_begin_section", "snippet_offset_in_begin_section", "snippet_end_section", "snippet_offset_in_end_section"}.issubset(topics_or_res.columns):
+        if not {"qid", "query", "query_type", "docno", "score", "rank", "text", "url", "snippet_begin_section", "snippet_offset_in_begin_section", "snippet_end_section", "snippet_offset_in_end_section"}.issubset(topics_or_res.columns):
             raise RuntimeError(
-                "Expected qid, query, query_type, docno, score, rank, title, abstract, text, url, snippet_begin_section, snippet_offset_in_begin_section, snippet_end_section, and snippet_offset_in_end_section columns.")
+                "Expected qid, query, query_type, docno, score, rank, text, url, snippet_begin_section, snippet_offset_in_begin_section, snippet_end_section, and snippet_offset_in_end_section columns.")
 
         for qid, res in topics_or_res.groupby(
             by="qid",
