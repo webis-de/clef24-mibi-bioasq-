@@ -233,11 +233,11 @@ class Article(Document):
     """Basename of the XML file that contains this article."""
 
     @property
-    def pubmed_id_url(self) -> str:
+    def pubmed_url(self) -> str:
         return f"https://pubmed.ncbi.nlm.nih.gov/{self.pubmed_id}"
 
     @property
-    def pmc_id_url(self) -> str | None:
+    def pmc_url(self) -> str | None:
         if self.pmc_id is None:
             return None
         return f"https://ncbi.nlm.nih.gov/pmc/articles/{self.pmc_id}"
