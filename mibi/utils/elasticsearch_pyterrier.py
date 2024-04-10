@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import islice
 from typing import Any, Callable, Generic, Hashable, Iterable, Type, TypeVar
@@ -21,8 +21,8 @@ T = TypeVar("T", bound=Document)
 class ElasticsearchRetrieve(Generic[T], Transformer):
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    query_builder: Callable[[str], Query] = field(repr=False)
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     num_results: int = 10
     index: str | None = None
     verbose: bool = False
@@ -93,7 +93,7 @@ class ElasticsearchRetrieve(Generic[T], Transformer):
 class ElasticsearchRerank(Generic[T], Transformer):
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
+    query_builder: Callable[[str], Query] = field(repr=False)
     index: str | None = None
     verbose: bool = False
 
@@ -162,7 +162,7 @@ class ElasticsearchRerank(Generic[T], Transformer):
 class ElasticsearchGet(Generic[T], Transformer):
     document_type: Type[T]
     client: Elasticsearch
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     index: str | None = None
     verbose: bool = False
 
@@ -232,8 +232,8 @@ class ElasticsearchGet(Generic[T], Transformer):
 class ElasticsearchTransformer(Generic[T], Transformer):
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    query_builder: Callable[[str], Query] = field(repr=False)
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     num_results: int = 10
     index: str | None = None
     verbose: bool = False
