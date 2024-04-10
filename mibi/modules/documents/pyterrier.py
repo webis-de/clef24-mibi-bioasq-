@@ -47,3 +47,6 @@ class FoldSnippets(Transformer):
                 sort=False,
             ).first().reset_index(drop=True)
         return topics_or_res
+    
+    def __repr__(self) -> str:
+        return "FoldSnippets()"

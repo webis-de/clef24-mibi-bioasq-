@@ -30,14 +30,14 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
             if any(res[col].isna()):
                 raise ValueError(
                     f"Cannot parse documents due to missing `{col}` values.")
-        if "docno" in res.columns:
+        if "pubmed_id" in res.columns:
             if any(res["docno"].isna()):
                 raise ValueError(
-                    "Cannot parse documents due to missing `docno` values.")
+                    "Cannot parse documents due to missing `pubmed_id` values.")
             return [
                 Snippet(
                     document=Url(
-                        f"https://pubmed.ncbi.nlm.nih.gov/{row['docno']}"),
+                        f"https://pubmed.ncbi.nlm.nih.gov/{row['pubmed_id']}"),
                     text=row["text"],
                     begin_section=row["snippet_begin_section"],
                     offset_in_begin_section=row["snippet_offset_in_begin_section"],
@@ -160,7 +160,8 @@ class FallbackRetrieveSnippets(Transformer):
         topics_or_res = self.retrieve.transform(topics_or_res)
         topics_or_res = DataFrame([
             {
-                **row[list(set(row.index) - {"text", "title", "abstract"})],
+                "docno": f"{row['docno']}%{i}",
+                **row[list(set(row.index) - {"docno", "text", "title", "abstract"})],
                 "text": snippet.text,
                 "snippet_begin_section": snippet.begin_section,
                 "snippet_offset_in_begin_section": snippet.offset_in_begin_section,
@@ -168,7 +169,7 @@ class FallbackRetrieveSnippets(Transformer):
                 "snippet_offset_in_end_section": snippet.offset_in_end_section,
             }
             for _, row in topics_or_res.iterrows()
-            for snippet in self._iter_snippets(row)
+            for i, snippet in enumerate(self._iter_snippets(row))
         ])
 
         topics_or_res = add_ranks(topics_or_res)
