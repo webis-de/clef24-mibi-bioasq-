@@ -153,7 +153,6 @@ class ElasticsearchRerank(Generic[T], Transformer):
         topics_or_res.reset_index(drop=True, inplace=True)
         topics_or_res.sort_values(by=["qid", "score"], ascending=[
                                   True, False], inplace=True)
-        topics_or_res.to_csv("test.csv")
         topics_or_res = add_ranks(topics_or_res)
         return topics_or_res
 
