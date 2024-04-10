@@ -49,7 +49,9 @@ def build_documents_pipeline(
 
     pipeline = FoldSnippets()
 
-    def build_query(query: str) -> Query:
+    def build_query(row: dict[Hashable, Any]) -> Query:
+        query = str(row["query"])
+
         language: Language = spacy_load("en_core_sci_sm")
         doc = language(query)
 
