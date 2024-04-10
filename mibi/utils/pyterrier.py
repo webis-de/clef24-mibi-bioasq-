@@ -203,7 +203,6 @@ class CachableTransformer(Transformer):
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         return self.wrapped.transform(topics_or_res)
-    
 
 
 @dataclass(frozen=True)
@@ -214,7 +213,9 @@ class CutoffRerank(Transformer):
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         topics_or_res = self.candidates.transform(topics_or_res)
-        print(f"Cached {len(topics_or_res)} docs for re-ranking.")
-        pipeline = Transformer.from_df(topics_or_res)
+        pipeline = Transformer.from_df(
+            input=topics_or_res,
+            uniform=True,
+        )
         pipeline = ((pipeline % self.cutoff) >> self.reranker) ^ pipeline
         return pipeline.transform(topics_or_res)
