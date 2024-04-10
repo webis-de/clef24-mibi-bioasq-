@@ -99,10 +99,7 @@ ListExactAnswer: TypeAlias = Annotated[
 SummaryExactAnswer: TypeAlias = Literal["n/a"]
 NOT_AVAILABLE: Final[SummaryExactAnswer] = "n/a"
 
-IdealAnswer: TypeAlias = Annotated[
-    Sequence[str],
-    Len(min_length=1),
-]
+IdealAnswer: TypeAlias = str
 
 ExactAnswer: TypeAlias = YesNoExactAnswer | FactoidExactAnswer | ListExactAnswer | SummaryExactAnswer
 

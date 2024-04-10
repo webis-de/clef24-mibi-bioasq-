@@ -69,4 +69,4 @@ class MockIdealAnswerModule(IdealAnswerModule):
         question: Question,
         partial_answer: PartialAnswer,
     ) -> IdealAnswer:
-        return ["Lorem ipsum"]
+        return "Lorem ipsum"
