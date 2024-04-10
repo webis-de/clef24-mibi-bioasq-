@@ -1,0 +1,53 @@
+# Submissions
+
+In this file, we briefly describe what approaches we submitted to BioASQ:
+
+- Batch 1:
+  - Phase A:
+    - `mibi_rag_abstract`:
+      - Retrieve 200 documents with PubMed API (using the question text as query; removing the last query term until the result set is not empty anymore).
+      - Re-rank with BM25 (k1=1.5, b=0.75, epsilon=0.25, concatenated title and abstract, NLTK tokenizer, excluding NLTK stopwords and punctuation, case-insensitive).
+      - Cut-off at top-50.
+      - Re-rank with cross-encoder (cross-encoder/msmarco-MiniLM-L6-en-de-v1, only abstract).
+      - Cut-off at top-25.
+      - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, only abstract).
+      - Cut-off at top-10.
+      - **How are snippets generated?**
+      - **Why/how are answers generated?**
+    - `mibi_rag_snippet`:
+      - Retrieve documents the same as `mibi_rag_abstract`.
+      - Generate snippets with GPT-3.5 (turbo, **temperature?**, **max tokens?**) chain-of-thought few-shot prompting ([prompt](notebooks/test_templates.py)).
+      - **Why/how are answers generated?**
+  - Phase A+:
+    - `mibi_rag_abstract`:
+      - Retrieve documents the same as `mibi_rag_abstract` (Phase A).
+      - Use top-3 abstracts concatenated as context for answer generation.
+      - Generate an exact answer to the question with GPT-3.5 (turbo, **temperature?**, **max tokens?**) zero-shot prompting ([prompt](notebooks/test_utils.py)), with 4 response models depending on the question type.
+      - Generate an"ideal" (long-form) answer to the question with GPT-3.5 (turbo, **temperature?**, **max tokens?**) zero-shot prompting ([prompt](notebooks/test_utils.py)), with 2 response models depending on the question type.
+    - `mibi_rag_snippet`:
+      - Retrieve documents and snippets the same as `mibi_rag_snippet` (Phase A).
+      - Use all (top-10) snippets concatenated as context for answer generation.
+      - Generate an exact answer to the question the same as `mibi_rag_abstract`.
+      - Generate an "ideal" answer to the question the same as `mibi_rag_abstract`.
+  - Phase B:
+    - `mibi_rag_abstract`:
+      - **Retrieve or use provided documents/snippets?**
+      - Use all (top-10) snippets concatenated as context for answer generation.
+      - Generate an exact answer to the question the same as `mibi_rag_abstract` (Phase A+).
+      - Generate an "ideal" answer to the question the same as `mibi_rag_abstract` (Phase A+).
+    - `mibi_rag_snippet`:
+      - **Retrieve or use provided documents/snippets?**
+      - Generate an exact answer to the question the same as `mibi_rag_snippet` (Phase A+).
+      - Generate an "ideal" answer to the question the same as `mibi_rag_snippet` (Phase A+).
+- Batch 2:
+  - Phase A:
+    - `mibi_rag_abstract`:
+      - Index PubMed 2024 baseline in Elasticsearch (including metadata).
+      - Retrieve from 
+    - `mibi_rag_snippet`: TODO
+  - Phase A+:
+    - `mibi_rag_abstract`: TODO
+    - `mibi_rag_snippet`: TODO
+  - Phase B:
+    - `mibi_rag_abstract`: TODO
+    - `mibi_rag_snippet`: TODO
