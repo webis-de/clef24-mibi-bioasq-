@@ -175,6 +175,9 @@ def run(
         from mibi.modules.mock import MockDocumentsModule
         documents_module = MockDocumentsModule()
     elif documents_module_type == "pyterrier":
+        from pyterrier import started, init
+        if not started():
+            init()
         from mibi.modules.documents.pipelines import build_documents_pipeline
         from mibi.modules.documents.pyterrier import PyTerrierDocumentsModule
         if elasticsearch is None or elasticsearch_index is None:
@@ -192,6 +195,9 @@ def run(
         from mibi.modules.mock import MockSnippetsModule
         snippets_module = MockSnippetsModule()
     elif snippets_module_type == "pyterrier":
+        from pyterrier import started, init
+        if not started():
+            init()
         from mibi.modules.snippets.pipelines import build_snippets_pipeline
         from mibi.modules.snippets.pyterrier import PyTerrierSnippetsModule
         if elasticsearch is None or elasticsearch_index is None:

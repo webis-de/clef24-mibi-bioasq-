@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import islice
 from typing import Any, Callable, Generic, Hashable, Iterable, Type, TypeVar
@@ -19,10 +19,22 @@ T = TypeVar("T", bound=Document)
 
 @dataclass(frozen=True)
 class ElasticsearchRetrieve(Generic[T], Transformer):
+    """
+    Retrieve documents from an Elasticsearch index.
+
+    :param document_type: Elasticsearch document type. Must extend `Document`.
+    :param client: Elasticsearch client to execute searches.
+    :param query_builder: A function that builds an Elasticsearch query from the data frame row.
+    :param result_builder: A function that extracts a dict from the document returned by Elasticsearch.
+    :param num_results: Number of results to be retrieved. Defaults to 10 results.
+    :param index: The Elasticsearch index name to retrieve documents from. Defaults to the index specified in the document type.
+    :param verbose: Whether to show a progress bar when retrieving results. Defaults to `False`.
+    """
+
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    query_builder: Callable[[dict[Hashable, Any]], Query] = field(repr=False)
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     num_results: int = 10
     index: str | None = None
     verbose: bool = False
@@ -46,7 +58,7 @@ class ElasticsearchRetrieve(Generic[T], Transformer):
 
         search: Search = self.document_type.search(
             using=self.client, index=self.index)
-        search = search.query(self.query_builder(row["query"]))
+        search = search.query(self.query_builder(row.to_dict()))
         search = search.extra(size=self.num_results)
 
         response = search.execute()
@@ -91,16 +103,27 @@ class ElasticsearchRetrieve(Generic[T], Transformer):
 
 @dataclass(frozen=True)
 class ElasticsearchRerank(Generic[T], Transformer):
+    """
+    Re-rank documents based on an Elasticsearch index.
+    The `docno` column is expected to contain the same IDs as used as Elasticsearch IDs.
+
+    :param document_type: Elasticsearch document type. Must extend `Document`.
+    :param client: Elasticsearch client to execute searches.
+    :param query_builder: A function that builds an Elasticsearch query from the data frame row.
+    :param index: The Elasticsearch index name to retrieve documents from. Defaults to the index specified in the document type.
+    :param verbose: Whether to show a progress bar when re-ranking results. Defaults to `False`.
+    """
+
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
+    query_builder: Callable[[dict[Hashable, Any]], Query] = field(repr=False)
     index: str | None = None
     verbose: bool = False
 
     def _transform_query(self, res: DataFrame) -> DataFrame:
         search: Search = self.document_type.search(
             using=self.client, index=self.index)
-        search = search.query(self.query_builder(res.iloc[0]["query"]))
+        search = search.query(self.query_builder(res.iloc[0].to_dict()))
         search = search.filter(Terms(_id=[
             row["docno"]
             for _, row in res.iterrows()
@@ -153,16 +176,26 @@ class ElasticsearchRerank(Generic[T], Transformer):
         topics_or_res.reset_index(drop=True, inplace=True)
         topics_or_res.sort_values(by=["qid", "score"], ascending=[
                                   True, False], inplace=True)
-        topics_or_res.to_csv("test.csv")
         topics_or_res = add_ranks(topics_or_res)
         return topics_or_res
 
 
 @dataclass(frozen=True)
 class ElasticsearchGet(Generic[T], Transformer):
+    """
+    Get document fields from an Elasticsearch index.
+    The `docno` column is expected to contain the same IDs as used as Elasticsearch IDs.
+
+    :param document_type: Elasticsearch document type. Must extend `Document`.
+    :param client: Elasticsearch client to execute searches.
+    :param result_builder: A function that extracts a dict from the document returned by Elasticsearch.
+    :param index: The Elasticsearch index name to get documents from. Defaults to the index specified in the document type.
+    :param verbose: Whether to show a progress bar when getting results. Defaults to `False`.
+    """
+
     document_type: Type[T]
     client: Elasticsearch
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     index: str | None = None
     verbose: bool = False
 
@@ -230,10 +263,21 @@ class ElasticsearchGet(Generic[T], Transformer):
 
 @dataclass(frozen=True)
 class ElasticsearchTransformer(Generic[T], Transformer):
+    """
+    Generic `Transformer` that either retrieves or re-ranks documents from an Elasticsearch index, depending on whether the `docno` field is present.
+
+    :param document_type: Elasticsearch document type. Must extend `Document`.
+    :param client: Elasticsearch client to execute searches.
+    :param query_builder: A function that builds an Elasticsearch query from the data frame row.
+    :param result_builder: A function that extracts a dict from the document returned by Elasticsearch.
+    :param num_results: Number of results to be retrieved. Defaults to 10 results.
+    :param index: The Elasticsearch index name to retrieve documents from. Defaults to the index specified in the document type.
+    :param verbose: Whether to show a progress bar when retrieving/re-ranking results. Defaults to `False`.
+    """
     document_type: Type[T]
     client: Elasticsearch
-    query_builder: Callable[[str], Query]
-    result_builder: Callable[[T], dict[Hashable, Any]]
+    query_builder: Callable[[dict[Hashable, Any]], Query] = field(repr=False)
+    result_builder: Callable[[T], dict[Hashable, Any]] = field(repr=False)
     num_results: int = 10
     index: str | None = None
     verbose: bool = False
