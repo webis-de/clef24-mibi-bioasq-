@@ -99,10 +99,7 @@ ListExactAnswer: TypeAlias = Annotated[
 SummaryExactAnswer: TypeAlias = Literal["n/a"]
 NOT_AVAILABLE: Final[SummaryExactAnswer] = "n/a"
 
-IdealAnswer: TypeAlias = Annotated[
-    Sequence[str],
-    Len(min_length=1),
-]
+IdealAnswer: TypeAlias = str
 
 ExactAnswer: TypeAlias = YesNoExactAnswer | FactoidExactAnswer | ListExactAnswer | SummaryExactAnswer
 
@@ -130,10 +127,41 @@ class AnsweredQuestionData(BaseModel):
 
 
 class PartiallyAnsweredQuestion(PartialAnswer, Question):
-    pass
+
+    @classmethod
+    def from_question(cls, question: Question) -> "PartiallyAnsweredQuestion":
+        return PartiallyAnsweredQuestion(
+            id=question.id,
+            type=question.type,
+            body=question.body,
+        )
+
+    def merge(self, question: "PartiallyAnsweredQuestion") -> "PartiallyAnsweredQuestion":
+        if self.id != question.id:
+            raise ValueError(
+                f"Question IDs do not match: "
+                f"'{self.id}' != '{question.id}'")
+        if self.type != question.type:
+            raise ValueError(
+                f"Question types do not match: "
+                f"'{self.type}' != '{question.type}'")
+        if self.body != question.body:
+            raise ValueError(
+                f"Question bodys do not match: "
+                f"'{self.body}' != '{question.body}'")
+        return PartiallyAnsweredQuestion(
+            id=self.id,
+            type=self.type,
+            body=self.body,
+            documents=question.documents if question.documents is not None else self.documents,
+            snippets=question.snippets if question.snippets is not None else self.snippets,
+            ideal_answer=question.ideal_answer if question.ideal_answer is not None else self.ideal_answer,
+            exact_answer=question.exact_answer if question.exact_answer is not None else self.exact_answer,
+        )
 
 
 class PartiallyAnsweredQuestionData(BaseModel):
+
     questions: Sequence[PartiallyAnsweredQuestion] = Field(frozen=True)
 
 
