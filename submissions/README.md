@@ -5,12 +5,12 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
 - Batch 1:
   - Phase A:
     - `mibi_rag_abstract`:
-      - Retrieve 200 documents with PubMed API (using the question text as query; removing the last query term until the result set is not empty anymore).
+      - Retrieve 200 documents with PubMed API (using the question text as query; removing the last query term then first until the result set is not empty anymore).
       - Re-rank with BM25 (k1=1.5, b=0.75, epsilon=0.25, concatenated title and abstract, NLTK tokenizer, excluding NLTK stopwords and punctuation, case-insensitive).
       - Cut-off at top-50.
-      - Re-rank with cross-encoder (cross-encoder/msmarco-MiniLM-L6-en-de-v1, only abstract).
+      - Re-rank with cross-encoder (cross-encoder/msmarco-MiniLM-L6-en-de-v1, original question, only abstract).
       - Cut-off at top-25.
-      - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, only abstract).
+      - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, originalquestion, only abstract).
       - Cut-off at top-10.
       - **How are snippets generated?**
       - **Why/how are answers generated?**
@@ -31,12 +31,15 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Generate an "ideal" answer to the question the same as `mibi_rag_abstract`.
   - Phase B:
     - `mibi_rag_abstract`:
-      - **Retrieve or use provided documents/snippets?**
-      - Use all (top-10) snippets concatenated as context for answer generation.
+      - Rerank the provided abstracts with a cross-encoder (as in Phase A)
+      - Cut-off at 25
+      - Rerank with a bi-encoder (as in Phase A)
+      - Cut-off at 10
+      - Use top-3 abstracts for answer generation
       - Generate an exact answer to the question the same as `mibi_rag_abstract` (Phase A+).
       - Generate an "ideal" answer to the question the same as `mibi_rag_abstract` (Phase A+).
     - `mibi_rag_snippet`:
-      - **Retrieve or use provided documents/snippets?**
+      - Use all (top-10) provided snippets concatenated as context for answer generation.
       - Generate an exact answer to the question the same as `mibi_rag_snippet` (Phase A+).
       - Generate an "ideal" answer to the question the same as `mibi_rag_snippet` (Phase A+).
 - Batch 2:
