@@ -75,7 +75,10 @@ class Snippet(BaseModel):
 
 Snippets: TypeAlias = Annotated[
     Sequence[Snippet],
-    Len(min_length=1, max_length=10),
+    Len(
+        min_length=1,
+        # max_length=10,
+    ),
 ]
 
 YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
