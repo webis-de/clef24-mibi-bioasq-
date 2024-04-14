@@ -117,9 +117,9 @@ class PyTerrierModule(Generic[_T], ABC):
 
         res: DataFrame
         if res_snippets is not None and res_documents is not None:
-            res = res_snippets.join(
+            res = res_snippets.merge(
                 res_documents,
-                on=["docno", "url"],
+                on=["qid", "query", "query_type", "docno", "url"],
                 how="outer",
             )
         elif res_snippets is not None:
