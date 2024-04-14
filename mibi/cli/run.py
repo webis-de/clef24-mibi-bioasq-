@@ -141,12 +141,12 @@ def run(
     elasticsearch_index: str | None,
 ) -> None:
     from elasticsearch7 import Elasticsearch
-    from mibi.model import AnsweredQuestion, AnsweredQuestionData, QuestionData
+    from mibi.model import AnsweredQuestion, AnsweredQuestionData, PartiallyAnsweredQuestionData
     from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
     from mibi.utils.language_models import init_language_model_clients
 
     with input_path.open("rb") as input_file:
-        data = QuestionData.model_validate_json(input_file.read())
+        data = PartiallyAnsweredQuestionData.model_validate_json(input_file.read())
     echo(f"Found {len(data.questions)} questions.")
 
     init_language_model_clients(language_model_name)

@@ -1,4 +1,4 @@
-from mibi.model import PartialAnswer, Question, Answer
+from mibi.model import PartialAnswer, Question, Answer, PartiallyAnsweredQuestion
 from mibi.modules import DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 
 
@@ -19,13 +19,17 @@ class AnswerBuilder:
         ideal_answer_module: IdealAnswerModule,
     ) -> None:
         self._question = question
-        self._partial_answer = PartialAnswer()
+        if isinstance(question, PartiallyAnsweredQuestion):
+            self._partial_answer = question
+        else:
+            self._partial_answer = PartialAnswer()
         self._documents_module = documents_module
         self._snippets_module = snippets_module
         self._exact_answer_module = exact_answer_module
         self._ideal_answer_module = ideal_answer_module
 
     def make_documents(self) -> None:
+        print("Making documents...")
         self._partial_answer = PartialAnswer(
             documents=self._documents_module.forward(
                 question=self._question,
@@ -35,8 +39,10 @@ class AnswerBuilder:
             exact_answer=self._partial_answer.exact_answer,
             ideal_answer=self._partial_answer.ideal_answer,
         )
+        print("Made documents.")
 
     def make_snippets(self) -> None:
+        print("Making snippets...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._snippets_module.forward(
@@ -46,8 +52,10 @@ class AnswerBuilder:
             exact_answer=self._partial_answer.exact_answer,
             ideal_answer=self._partial_answer.ideal_answer,
         )
+        print("Made snippets.")
 
     def make_exact_answer(self) -> None:
+        print("Making exact answer...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
@@ -57,8 +65,10 @@ class AnswerBuilder:
             ),
             ideal_answer=self._partial_answer.ideal_answer,
         )
+        print("Made exact answer.")
 
     def make_ideal_answer(self) -> None:
+        print("Making ideal answer...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
@@ -68,6 +78,7 @@ class AnswerBuilder:
                 partial_answer=self._partial_answer,
             ),
         )
+        print("Made ideal answer.")
 
     @property
     def question(self) -> Question:
