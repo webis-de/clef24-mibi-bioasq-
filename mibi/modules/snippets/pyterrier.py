@@ -9,6 +9,7 @@ from pandas import DataFrame, Series, isna
 from pydantic_core import Url
 from pyterrier.model import add_ranks
 from pyterrier.transformer import Transformer
+from pyterrier.text import DePassager
 
 from mibi.model import Snippet, Snippets
 from mibi.modules import SnippetsModule
@@ -26,14 +27,14 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
         ):
             if col not in res.columns:
                 raise ValueError(
-                    f"Cannot parse documents from results with columns: {res.columns}")
+                    f"Cannot parse snippets from results with columns: {res.columns}")
             if any(res[col].isna()):
                 raise ValueError(
-                    f"Cannot parse documents due to missing `{col}` values.")
-        if "pubmed_id" in res.columns:
+                    f"Cannot parse snippets due to missing `{col}` values.")
+        if "docno" in res.columns:
             if any(res["docno"].isna()):
                 raise ValueError(
-                    "Cannot parse documents due to missing `pubmed_id` values.")
+                    "Cannot parse snippets due to missing `pubmed_id` values.")
             return [
                 Snippet(
                     document=Url(
@@ -49,7 +50,7 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
         elif "url" in res.columns:
             if any(res["url"].isna()):
                 raise ValueError(
-                    "Cannot parse documents due to missing `url` values.")
+                    "Cannot parse snippets due to missing `url` values.")
             return [
                 Snippet(
                     document=Url(row["url"]),
@@ -63,10 +64,10 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
             ]
         else:
             raise ValueError(
-                f"Cannot parse documents from results with columns: {res.columns}")
+                f"Cannot parse snippets from results with columns: {res.columns}")
 
 
-_SNIPPETS_COLS = {
+SNIPPETS_COLS = {
     "text",
     "snippet_begin_section",
     "snippet_offset_in_begin_section",
@@ -82,8 +83,14 @@ class _Sentence(NamedTuple):
 
 
 @dataclass(frozen=True)
-class FallbackRetrieveSnippets(Transformer):
-    retrieve: Transformer
+class PubMedSentencePassager(Transformer):
+    """
+    Split a PubMed article into snippets consisting of either:
+    - the full title or
+    - one or more sentences from the abstract.
+    The sentences are split using the NLTK and the maximum number of sentences can be configured.
+    """
+
     max_sentences: int
 
     def __post_init__(self):
@@ -154,10 +161,6 @@ class FallbackRetrieveSnippets(Transformer):
         yield from self._iter_abstract_snippets(row)
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
-        if _SNIPPETS_COLS.issubset(topics_or_res.columns):
-            return topics_or_res
-
-        topics_or_res = self.retrieve.transform(topics_or_res)
         topics_or_res = DataFrame([
             {
                 "docno": f"{row['docno']}%{i}",
