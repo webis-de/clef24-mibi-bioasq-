@@ -128,7 +128,7 @@ class ElasticsearchRerank(Generic[T], Transformer):
             row["docno"]
             for _, row in res.iterrows()
         ]))
-        search = search.extra(size=len(res.index))
+        search = search.extra(size=len(res))
         search = search.extra(_source=False)
 
         response = search.execute()
