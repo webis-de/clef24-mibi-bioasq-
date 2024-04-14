@@ -1,4 +1,5 @@
 from elasticsearch7 import Elasticsearch
+from pandas import DataFrame
 from pyterrier.batchretrieve import TextScorer
 from pyterrier.transformer import Transformer
 from pyterrier.rewrite import tokenise, reset as reset_query
@@ -9,22 +10,31 @@ from pyterrier_dr import TasB
 
 from mibi import PROJECT_DIR
 from mibi.modules.documents.pipelines import build_documents_pipeline
-from mibi.modules.snippets.pyterrier import FallbackRetrieveSnippets
-from mibi.utils.pyterrier import CachableTransformer, CutoffRerank, ExportSnippetsTransformer
+from mibi.modules.snippets.pyterrier import SNIPPETS_COLS, PubMedSentencePassager
+from mibi.utils.pyterrier import ConditionalTransformer, CachableTransformer, CutoffRerank, ExportSnippetsTransformer
+
+
+def _has_snippet_columns(topics_or_res: DataFrame) -> bool:
+    return SNIPPETS_COLS.issubset(topics_or_res.columns)
 
 
 def build_snippets_pipeline(
         elasticsearch: Elasticsearch,
         index: str,
 ) -> Transformer:
-    pipeline = FallbackRetrieveSnippets(
-        retrieve=build_documents_pipeline(
-            elasticsearch=elasticsearch,
-            index=index,
-        ),
-        max_sentences=3,
+    # If no snippets are given, run the documents pipeline and split passages.
+    documents_pipeline = build_documents_pipeline(
+        elasticsearch=elasticsearch,
+        index=index,
+    )
+    passager = PubMedSentencePassager(max_sentences=3)    
+    pipeline = ConditionalTransformer(
+        condition=_has_snippet_columns,
+        transformer_true=Transformer.identity(),
+        transformer_false=documents_pipeline >> passager,
     )
 
+    # Re-rank texts with BM25 (based on candidate set text statistics!)
     bm25 = CachableTransformer(
         wrapped=TextScorer(
             body_attr="text",
