@@ -9,7 +9,6 @@ from pandas import DataFrame, Series, isna
 from pydantic_core import Url
 from pyterrier.model import add_ranks
 from pyterrier.transformer import Transformer
-from pyterrier.text import DePassager
 
 from mibi.model import Snippet, Snippets
 from mibi.modules import SnippetsModule

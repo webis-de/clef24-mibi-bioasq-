@@ -4,10 +4,9 @@ from functools import cached_property
 from pathlib import Path
 from random import shuffle
 from re import compile as re_compile
-from typing import Iterator, Iterable, Sized
+from typing import Iterator, Iterable
 from warnings import warn
 
-from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl import Document, Date, Text, Keyword, InnerDoc, Nested
 from joblib import Memory
 from pubmed_parser import parse_medline_xml

@@ -3,6 +3,7 @@ from mibi.builder import AnswerBuilder
 from mibi.model import Question
 from mibi.modules.mock import MockDocumentsModule, MockSnippetsModule, MockExactAnswerModule, MockIdealAnswerModule
 
+
 def test_answer_builder() -> None:
     question = Question(
         id="6415c252690f196b51000011",
