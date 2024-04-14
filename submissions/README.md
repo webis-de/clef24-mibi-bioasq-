@@ -10,7 +10,7 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Cut-off at top-50.
       - Re-rank with cross-encoder (cross-encoder/msmarco-MiniLM-L6-en-de-v1, original question, only abstract).
       - Cut-off at top-25.
-      - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, originalquestion, only abstract).
+      - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, original question, only abstract).
       - Cut-off at top-10.
       - **How are snippets generated?**
       - **Why/how are answers generated?**
@@ -31,11 +31,8 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Generate an "ideal" answer to the question the same as `mibi_rag_abstract`.
   - Phase B:
     - `mibi_rag_abstract`:
-      - Rerank the provided abstracts with a cross-encoder (as in Phase A)
-      - Cut-off at 25
-      - Rerank with a bi-encoder (as in Phase A)
-      - Cut-off at 10
-      - Use top-3 abstracts for answer generation
+      - Re-rank the provided abstracts the same as `mibi_rag_abstract` (Phase A; cross-encoder and bi-encoder).
+      - Use top-3 abstracts concatenated as context for answer generation.
       - Generate an exact answer to the question the same as `mibi_rag_abstract` (Phase A+).
       - Generate an "ideal" answer to the question the same as `mibi_rag_abstract` (Phase A+).
     - `mibi_rag_snippet`:
@@ -46,11 +43,25 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
   - Phase A:
     - `mibi_rag_abstract`:
       - Index PubMed 2024 baseline in Elasticsearch (including metadata).
-      - Retrieve from 
-    - `mibi_rag_snippet`: TODO
+      - Retrieve 10 documents from Elasticsearch (consider only articles with an abstract, disallow 27 non-peer-reviewed publication types, match the question to the article's title and abstract, and match the medical entities (SciSpaCy) from the question to MeSH terms of the PubMed article).
+    - `mibi_rag_snippet`:
+      - Retrieve documents the same as `mibi_rag_abstract`.
+      - Extract snippets from the retrieved articles (the full title and up to 3 sentences from the abstract).
+      - Re-rank the top-100 with the TAS-B bi-encoder (sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco).
+      - Re-rank the top-5 with the duoT5 cross-encoder (castorini/duot5-base-msmarco).
   - Phase A+:
-    - `mibi_rag_abstract`: TODO
-    - `mibi_rag_snippet`: TODO
+    - `mibi_rag_abstract`:
+      - Retrieve documents the same as `mibi_rag_abstract` (Phase A).
+      - Use top-3 abstracts concatenated as context for answer generation.
+      - Generate an exact answer to the question the same as `mibi_rag_abstract` (Batch 1).
+      - Generate an "ideal" answer to the question the same as `mibi_rag_abstract` (Batch 1).
+    - `mibi_rag_snippet`:
+      - Retrieve documents and snippets the same as `mibi_rag_snippet` (Phase A).
+      - Use all (top-10) snippets concatenated as context for answer generation.
+      - Generate an exact answer to the question the same as `mibi_rag_snippet` (Batch 1).
+      - Generate an "ideal" answer to the question the same as `mibi_rag_snippet` (Batch 1).
   - Phase B:
-    - `mibi_rag_abstract`: TODO
-    - `mibi_rag_snippet`: TODO
+    - `mibi_rag_abstract`:
+      - Re-rank and generate answers the same as  `mibi_rag_abstract` (Batch 1).
+    - `mibi_rag_snippet`:
+      - Generate answers the same as  `mibi_rag_snippet` (Batch 1).
