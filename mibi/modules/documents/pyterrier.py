@@ -1,7 +1,5 @@
 from pandas import DataFrame
 from pydantic_core import Url
-from pyterrier.transformer import Transformer
-
 from mibi.model import Documents
 from mibi.modules import DocumentsModule
 from mibi.utils.pyterrier import PyTerrierModule
@@ -28,25 +26,3 @@ class PyTerrierDocumentsModule(PyTerrierModule[Documents], DocumentsModule):
         else:
             raise ValueError(
                 f"Cannot parse documents from results with columns: {res.columns}")
-
-
-_SNIPPETS_COLS = {
-    "text",
-    "snippet_begin_section",
-    "snippet_offset_in_begin_section",
-    "snippet_end_section",
-    "snippet_offset_in_end_section",
-}
-
-
-class FoldSnippets(Transformer):
-    def transform(self, topics_or_res: DataFrame) -> DataFrame:
-        if _SNIPPETS_COLS.issubset(topics_or_res.columns):
-            topics_or_res = topics_or_res.groupby(
-                by=list(_SNIPPETS_COLS),
-                sort=False,
-            ).first().reset_index(drop=True)
-        return topics_or_res
-    
-    def __repr__(self) -> str:
-        return "FoldSnippets()"
