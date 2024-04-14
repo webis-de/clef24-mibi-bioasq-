@@ -2,6 +2,6 @@
     "python.analysis.typeCheckingMode": "basic",
     "workbench.editorAssociations": {
         "*.ipynb": "jupyter.notebook.ipynb",
-        "file:/**/*.csv": "jupyter-data-wrangler"
+        "*.csv": "default"
     }
 }
