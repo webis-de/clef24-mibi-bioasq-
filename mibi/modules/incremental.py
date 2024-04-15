@@ -6,7 +6,7 @@ from pyrate_limiter.limiter import Limiter
 from pyrate_limiter import Rate, Duration
 from mibi.builder import AnswerBuilder
 from mibi.model import Question, Answer, QuestionType
-from mibi.modules import DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
+from mibi.modules import AnswerModule, DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 from mibi.utils.rate_limiting import rate_limit
 
 
@@ -46,7 +46,7 @@ class NextTaskOutput(BaseModel):
         description="The next task that should be run in order to answer the question.")
 
 
-class PredictNextTask(Signature):
+class NextTaskPredict(Signature):
     """Chose the next task to run, in order to get the full answer. The next task should be chosen as to optimally answer the question given the data at hand. No specific order of the tasks is enforced. Tasks can be repeated."""
     input: NextTaskInput = InputField()
     output: NextTaskOutput = OutputField()
@@ -54,7 +54,7 @@ class PredictNextTask(Signature):
 
 class IncrementalAnswerModule(
     Module,
-    # AnswerModule,
+    AnswerModule,
 ):
     """
     Incrementally build the full answer by asking the LLM which
@@ -66,7 +66,7 @@ class IncrementalAnswerModule(
     _snippets_module: SnippetsModule
     _exact_answer_module: ExactAnswerModule
     _ideal_answer_module: IdealAnswerModule
-    _predict_next_task = TypedPredictor(signature=PredictNextTask)
+    _next_task_predict = TypedPredictor(signature=NextTaskPredict)
 
     def __init__(
         self,
@@ -96,7 +96,7 @@ class IncrementalAnswerModule(
             history=history,
             is_ready=builder.is_ready,
         )
-        prediction: Prediction = self._predict_next_task.forward(
+        prediction: Prediction = self._next_task_predict.forward(
             input=input, **kwargs)
         output = cast(NextTaskOutput, prediction.output)
         return output.task
