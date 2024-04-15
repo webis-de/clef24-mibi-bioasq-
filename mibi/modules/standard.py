@@ -1,17 +1,12 @@
 from dataclasses import dataclass
 
-from dspy import Module
-
 from mibi.builder import AnswerBuilder
 from mibi.model import Question, Answer
 from mibi.modules import AnswerModule, DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 
 
 @dataclass(frozen=True)
-class StandardAnswerModule(
-    Module,
-    AnswerModule,
-):
+class StandardAnswerModule(AnswerModule):
     """
     Build the full answer by first retrieving documents, then snippets, then finding the exact answer, and finally the ideal answer.
     """

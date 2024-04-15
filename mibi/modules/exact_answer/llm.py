@@ -64,7 +64,7 @@ class ListPredict(Signature):
     output: ListOutput = OutputField()
 
 
-class LlmExactAnswerModule(Module, AutoExactAnswerModule):
+class LlmExactAnswerModule(AutoExactAnswerModule):
     _yes_no_predict = TypedPredictor(signature=YesNoPredict)
     _factoid_predict = TypedPredictor(signature=FactoidPredict)
     _list_predict = TypedPredictor(signature=ListPredict)

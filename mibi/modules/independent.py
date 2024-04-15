@@ -1,16 +1,11 @@
 from dataclasses import dataclass
 
-from dspy import Module
-
 from mibi.model import PartialAnswer, Question, Answer
 from mibi.modules import AnswerModule, DocumentsModule, SnippetsModule, ExactAnswerModule, IdealAnswerModule
 
 
 @dataclass(frozen=True)
-class IndependentAnswerModule(
-    Module,
-    AnswerModule,
-):
+class IndependentAnswerModule(AnswerModule):
     """
     Build the full answer by independently retrieving documents, snippets, finding the exact answer, and the ideal answer. The result of neither task depends on one another.
     """

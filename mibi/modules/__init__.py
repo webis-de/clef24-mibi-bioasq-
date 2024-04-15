@@ -1,8 +1,21 @@
-from typing import Protocol
-from mibi.model import Question, PartialAnswer, Documents, Snippets, ExactAnswer, IdealAnswer, YesNoExactAnswer, Answer
+from abc import ABC, ABCMeta, abstractmethod
+
+from dspy import Module, ProgramMeta
+
+from mibi.model import Question, PartialAnswer, Documents, Snippets, ExactAnswer, IdealAnswer, Answer
 
 
-class DocumentsModule(Protocol):
+class _ABCProgramMeta(ABCMeta, ProgramMeta):
+    pass
+
+
+class ABCModule(ABC, Module, metaclass=_ABCProgramMeta):
+    pass
+
+
+class DocumentsModule(ABCModule):
+
+    @abstractmethod
     def forward(
         self,
         question: Question,
@@ -18,7 +31,9 @@ class DocumentsModule(Protocol):
         return self.forward(question, partial_answer)
 
 
-class SnippetsModule(Protocol):
+class SnippetsModule(ABCModule):
+
+    @abstractmethod
     def forward(
         self,
         question: Question,
@@ -34,23 +49,9 @@ class SnippetsModule(Protocol):
         return self.forward(question, partial_answer)
 
 
-class YesNoExactAnswerModule(Protocol):
-    def forward(
-        self,
-        question: Question,
-        partial_answer: PartialAnswer,
-    ) -> YesNoExactAnswer:
-        raise NotImplementedError()
+class ExactAnswerModule(ABCModule):
 
-    def __call__(
-        self,
-        question: Question,
-        partial_answer: PartialAnswer,
-    ) -> YesNoExactAnswer:
-        return self.forward(question, partial_answer)
-
-
-class ExactAnswerModule(Protocol):
+    @abstractmethod
     def forward(
         self,
         question: Question,
@@ -66,7 +67,9 @@ class ExactAnswerModule(Protocol):
         return self.forward(question, partial_answer)
 
 
-class IdealAnswerModule(Protocol):
+class IdealAnswerModule(ABCModule):
+
+    @abstractmethod
     def forward(
         self,
         question: Question,
@@ -82,7 +85,9 @@ class IdealAnswerModule(Protocol):
         return self.forward(question, partial_answer)
 
 
-class AnswerModule(Protocol):
+class AnswerModule(ABCModule):
+
+    @abstractmethod
     def forward(
         self,
         question: Question,

@@ -27,7 +27,7 @@ class IdealPredict(Signature):
     output: IdealOutput = OutputField()
 
 
-class LlmIdealAnswerModule(Module, IdealAnswerModule):
+class LlmIdealAnswerModule(IdealAnswerModule):
     _ideal_predict = TypedPredictor(signature=IdealPredict)
 
     def _context(self, partial_answer: PartialAnswer) -> Context:

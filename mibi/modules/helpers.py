@@ -1,9 +1,9 @@
-from typing import Protocol
+from abc import abstractmethod
 from mibi.model import Question, PartialAnswer, ExactAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer, SummaryExactAnswer, NOT_AVAILABLE
-from mibi.modules import ExactAnswerModule
+from mibi.modules import ABCModule, ExactAnswerModule
 
 
-class AutoExactAnswerModule(ExactAnswerModule, Protocol):
+class AutoExactAnswerModule(ExactAnswerModule, ABCModule):
     def forward(
         self,
         question: Question,
@@ -20,6 +20,7 @@ class AutoExactAnswerModule(ExactAnswerModule, Protocol):
         else:
             raise ValueError(f"Unknown question type: {question.type}")
 
+    @abstractmethod
     def forward_yes_no(
         self,
         question: Question,
@@ -27,6 +28,7 @@ class AutoExactAnswerModule(ExactAnswerModule, Protocol):
     ) -> YesNoExactAnswer:
         raise NotImplementedError()
 
+    @abstractmethod
     def forward_factoid(
         self,
         question: Question,
@@ -34,6 +36,7 @@ class AutoExactAnswerModule(ExactAnswerModule, Protocol):
     ) -> FactoidExactAnswer:
         raise NotImplementedError()
 
+    @abstractmethod
     def forward_list(
         self,
         question: Question,
@@ -41,6 +44,7 @@ class AutoExactAnswerModule(ExactAnswerModule, Protocol):
     ) -> ListExactAnswer:
         raise NotImplementedError()
 
+    @abstractmethod
     def forward_summary(
         self,
         question: Question,

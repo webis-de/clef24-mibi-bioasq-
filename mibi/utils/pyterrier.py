@@ -7,13 +7,14 @@ from pandas import DataFrame
 from pyterrier.transformer import Transformer
 
 from mibi.model import NOT_AVAILABLE, Document,  PartialAnswer, Question, Snippet
+from mibi.modules import ABCModule
 
 
 _T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
-class PyTerrierModule(Generic[_T], ABC):
+class PyTerrierModule(Generic[_T], ABCModule):
     transformer: Transformer
 
     @staticmethod

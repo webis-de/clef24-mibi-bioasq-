@@ -1,6 +1,6 @@
 from typing import Literal, Sequence, TypeAlias, cast
 from warnings import warn
-from dspy import Module, Signature, Prediction, InputField, OutputField, TypedPredictor
+from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
 from pydantic import BaseModel, Field
 from pyrate_limiter.limiter import Limiter
 from pyrate_limiter import Rate, Duration
@@ -52,10 +52,7 @@ class NextTaskPredict(Signature):
     output: NextTaskOutput = OutputField()
 
 
-class IncrementalAnswerModule(
-    Module,
-    AnswerModule,
-):
+class IncrementalAnswerModule(AnswerModule):
     """
     Incrementally build the full answer by asking the LLM which
     part of the answer (i.e., documents, snippets, exact answer,
