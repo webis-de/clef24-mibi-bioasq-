@@ -102,6 +102,7 @@ class LlmExactAnswerModule(Module, AutoExactAnswerModule):
         )
         prediction: Prediction = self._factoid_predict.forward(input=input)
         output = cast(FactoidOutput, prediction.output)
+        # TODO: Additional validations using DSPy assertions?
         return [output.answer]
 
     def forward_list(
@@ -115,4 +116,5 @@ class LlmExactAnswerModule(Module, AutoExactAnswerModule):
         )
         prediction: Prediction = self._list_predict.forward(input=input)
         output = cast(ListOutput, prediction.output)
+        # TODO: Additional validations using DSPy assertions?
         return [[item] for item in output.answer]

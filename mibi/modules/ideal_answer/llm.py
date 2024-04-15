@@ -50,4 +50,5 @@ class LlmIdealAnswerModule(Module, IdealAnswerModule):
         )
         prediction: Prediction = self._ideal_predict.forward(input=input)
         output = cast(IdealOutput, prediction.output)
+        # TODO: Additional validations using DSPy assertions?
         return output.answer
