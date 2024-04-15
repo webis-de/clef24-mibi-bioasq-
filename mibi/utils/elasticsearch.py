@@ -59,13 +59,10 @@ class ElasticsearchIndexer(Generic[T]):
 
 
 def elasticsearch_connection(
-    elasticsearch_url: str | None,
+    elasticsearch_url: str,
     elasticsearch_username: str | None,
     elasticsearch_password: str | None,
-) -> Elasticsearch | None:
-    if elasticsearch_url is None:
-        return None
-
+) -> Elasticsearch:
     elasticsearch_auth: tuple[str, str] | None
     if elasticsearch_username is not None and elasticsearch_password is None:
         raise ValueError("Must provide both username and password or neither.")

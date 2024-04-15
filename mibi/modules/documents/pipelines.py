@@ -1,5 +1,6 @@
+from dataclasses import dataclass
+from functools import cached_property
 from typing import Any, Hashable
-from elasticsearch7 import Elasticsearch
 from elasticsearch7_dsl.query import Query, Match, Exists, Nested, Bool, Terms
 from pandas import DataFrame
 from pyterrier.transformer import Transformer
@@ -10,6 +11,7 @@ from spacy.language import Language
 from mibi import PROJECT_DIR
 from mibi.modules.documents.pubmed import Article
 from mibi.modules.snippets.pyterrier import SNIPPETS_COLS
+from mibi.utils.elasticsearch import elasticsearch_connection
 from mibi.utils.elasticsearch_pyterrier import ElasticsearchTransformer
 from mibi.utils.pyterrier import ConditionalTransformer, ExportDocumentsTransformer
 
@@ -154,36 +156,48 @@ def _build_result(article: Article) -> dict[Hashable, Any]:
     }
 
 
-def build_documents_pipeline(
-        elasticsearch: Elasticsearch,
-        index: str,
-) -> Transformer:
-    # If snippets are given, de-passage them.
-    de_passager = MaxPassage()
-    pipeline = ConditionalTransformer(
-        condition=_has_snippet_columns,
-        transformer_true=de_passager,
-        transformer_false=Transformer.identity(),
-    )
+@dataclass(frozen=True)
+class DocumentsPipeline(Transformer):
+    elasticsearch_url: str
+    elasticsearch_username: str | None
+    elasticsearch_password: str | None
+    elasticsearch_index: str | None
 
-    # Retrieve or re-rank documents with Elasticsearch (BM25).
-    pipeline = pipeline >> ElasticsearchTransformer(
-        document_type=Article,
-        client=elasticsearch,
-        query_builder=_build_query,
-        result_builder=_build_result,
-        num_results=10,
-        index=index,
-        verbose=True,
-    )
+    @cached_property
+    def _pipeline(self) -> Transformer:
+        # If snippets are given, de-passage them.
+        de_passager = MaxPassage()
+        pipeline = ConditionalTransformer(
+            condition=_has_snippet_columns,
+            transformer_true=de_passager,
+            transformer_false=Transformer.identity(),
+        )
 
-    # TODO: Re-rank documents?
+        # Retrieve or re-rank documents with Elasticsearch (BM25).
+        pipeline = pipeline >> ElasticsearchTransformer(
+            document_type=Article,
+            client=elasticsearch_connection(
+                elasticsearch_url=self.elasticsearch_url,
+                elasticsearch_username=self.elasticsearch_username,
+                elasticsearch_password=self.elasticsearch_password,
+            ),
+            query_builder=_build_query,
+            result_builder=_build_result,
+            num_results=10,
+            index=self.elasticsearch_index,
+            verbose=True,
+        )
 
-    # Cut off at 10 documents as per BioASQ requirements.
-    pipeline = pipeline % 10  # type: ignore
+        # TODO: Re-rank documents?
 
-    # FIXME: Export documents temporarily, to manually import them to the answer generation stage.
-    pipeline = pipeline >> ExportDocumentsTransformer(
-        path=PROJECT_DIR / "data" / "documents")
+        # Cut off at 10 documents as per BioASQ requirements.
+        pipeline = pipeline % 10  # type: ignore
 
-    return pipeline
+        # FIXME: Export documents temporarily, to manually import them to the answer generation stage.
+        pipeline = pipeline >> ExportDocumentsTransformer(
+            path=PROJECT_DIR / "data" / "documents")
+
+        return pipeline
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        return self._pipeline.transform(topics_or_res)

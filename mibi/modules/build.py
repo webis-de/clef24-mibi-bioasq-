@@ -3,17 +3,12 @@ from typing import Literal
 from pyterrier import started, init
 
 from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
-from mibi.modules.documents.pipelines import build_documents_pipeline
-from mibi.modules.documents.pyterrier import PyTerrierDocumentsModule
 from mibi.modules.exact_answer.llm import LlmExactAnswerModule
 from mibi.modules.ideal_answer.llm import LlmIdealAnswerModule
 from mibi.modules.incremental import IncrementalAnswerModule
 from mibi.modules.independent import IndependentAnswerModule
 from mibi.modules.mock import MockDocumentsModule, MockExactAnswerModule, MockIdealAnswerModule, MockSnippetsModule
-from mibi.modules.snippets.pipelines import build_snippets_pipeline
-from mibi.modules.snippets.pyterrier import PyTerrierSnippetsModule
 from mibi.modules.standard import StandardAnswerModule
-from mibi.utils.elasticsearch import elasticsearch_connection
 from mibi.utils.language_models import init_language_model_clients
 
 
@@ -28,9 +23,11 @@ def build_answer_module(
     ],
     exact_answer_module_type: Literal[
         "mock",
+        "llm",
     ],
     ideal_answer_module_type: Literal[
         "mock",
+        "llm",
     ],
     answer_module_type: Literal[
         "standard",
@@ -49,16 +46,10 @@ def build_answer_module(
     elasticsearch_password: str | None,
     elasticsearch_index: str | None,
 ) -> AnswerModule:
+    print("Build answer module.")
 
     # Init language models.
     init_language_model_clients(language_model_name)
-
-    # Init Elasticsearch.
-    elasticsearch = elasticsearch_connection(
-        elasticsearch_url,
-        elasticsearch_username,
-        elasticsearch_password,
-    )
 
     # Create documents module.
     documents_module: DocumentsModule
@@ -67,11 +58,15 @@ def build_answer_module(
     elif documents_module_type == "pyterrier":
         if not started():
             init()
-        if elasticsearch is None or elasticsearch_index is None:
+        from mibi.modules.documents.pipelines import DocumentsPipeline
+        from mibi.modules.documents.pyterrier import PyTerrierDocumentsModule
+        if elasticsearch_url is None or elasticsearch_index is None:
             raise ValueError("Must provide Elasticsearch URL and index.")
-        pipeline = build_documents_pipeline(
-            elasticsearch=elasticsearch,
-            index=elasticsearch_index,
+        pipeline = DocumentsPipeline(
+            elasticsearch_url=elasticsearch_url,
+            elasticsearch_username=elasticsearch_username,
+            elasticsearch_password=elasticsearch_password,
+            elasticsearch_index=elasticsearch_index,
         )
         documents_module = PyTerrierDocumentsModule(pipeline)
     else:
@@ -84,11 +79,15 @@ def build_answer_module(
     elif snippets_module_type == "pyterrier":
         if not started():
             init()
-        if elasticsearch is None or elasticsearch_index is None:
+        from mibi.modules.snippets.pipelines import SnippetsPipeline
+        from mibi.modules.snippets.pyterrier import PyTerrierSnippetsModule
+        if elasticsearch_url is None or elasticsearch_index is None:
             raise ValueError("Must provide Elasticsearch URL and index.")
-        pipeline = build_snippets_pipeline(
-            elasticsearch=elasticsearch,
-            index=elasticsearch_index,
+        pipeline = SnippetsPipeline(
+            elasticsearch_url=elasticsearch_url,
+            elasticsearch_username=elasticsearch_username,
+            elasticsearch_password=elasticsearch_password,
+            elasticsearch_index=elasticsearch_index,
         )
         snippets_module = PyTerrierSnippetsModule(pipeline)
     else:
