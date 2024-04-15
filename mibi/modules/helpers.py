@@ -44,7 +44,6 @@ class AutoExactAnswerModule(ExactAnswerModule, ABCModule):
     ) -> ListExactAnswer:
         raise NotImplementedError()
 
-    @abstractmethod
     def forward_summary(
         self,
         question: Question,
