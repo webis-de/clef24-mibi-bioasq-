@@ -140,116 +140,26 @@ def run(
     elasticsearch_password: str | None,
     elasticsearch_index: str | None,
 ) -> None:
-    from elasticsearch7 import Elasticsearch
     from mibi.model import AnsweredQuestion, AnsweredQuestionData, PartiallyAnsweredQuestionData
-    from mibi.modules import AnswerModule, DocumentsModule, ExactAnswerModule, IdealAnswerModule, SnippetsModule
-    from mibi.utils.language_models import init_language_model_clients
+    from mibi.modules.build import build_answer_module
 
     with input_path.open("rb") as input_file:
-        data = PartiallyAnsweredQuestionData.model_validate_json(input_file.read())
+        data = PartiallyAnsweredQuestionData.model_validate_json(
+            input_file.read())
     echo(f"Found {len(data.questions)} questions.")
 
-    init_language_model_clients(language_model_name)
-
-    elasticsearch_auth: tuple[str, str] | None
-    if elasticsearch_username is not None and elasticsearch_password is None:
-        raise UsageError("Must provide both username and password or none.")
-    elif elasticsearch_password is not None and elasticsearch_username is None:
-        raise UsageError("Must provide both password and username or none.")
-        raise UsageError("Must provide both password and username or none.")
-    elif elasticsearch_username is not None and elasticsearch_password is not None:
-        elasticsearch_auth = (elasticsearch_username, elasticsearch_password)
-    else:
-        elasticsearch_auth = None
-
-    elasticsearch = Elasticsearch(
-        hosts=elasticsearch_url,
-        http_auth=elasticsearch_auth,
-        request_timeout=60,
-        read_timeout=60,
-        max_retries=10,
-    ) if elasticsearch_url is not None else None
-
-    documents_module: DocumentsModule
-    if documents_module_type == "mock":
-        from mibi.modules.mock import MockDocumentsModule
-        documents_module = MockDocumentsModule()
-    elif documents_module_type == "pyterrier":
-        from pyterrier import started, init
-        if not started():
-            init()
-        from mibi.modules.documents.pipelines import build_documents_pipeline
-        from mibi.modules.documents.pyterrier import PyTerrierDocumentsModule
-        if elasticsearch is None or elasticsearch_index is None:
-            raise UsageError("Must provide Elasticsearch URL and index.")
-        pipeline = build_documents_pipeline(
-            elasticsearch=elasticsearch,
-            index=elasticsearch_index,
-        )
-        documents_module = PyTerrierDocumentsModule(pipeline)
-    else:
-        raise ValueError("Unknown documents module type.")
-
-    snippets_module: SnippetsModule
-    if snippets_module_type == "mock":
-        from mibi.modules.mock import MockSnippetsModule
-        snippets_module = MockSnippetsModule()
-    elif snippets_module_type == "pyterrier":
-        from pyterrier import started, init
-        if not started():
-            init()
-        from mibi.modules.snippets.pipelines import build_snippets_pipeline
-        from mibi.modules.snippets.pyterrier import PyTerrierSnippetsModule
-        if elasticsearch is None or elasticsearch_index is None:
-            raise UsageError("Must provide Elasticsearch URL and index.")
-        pipeline = build_snippets_pipeline(
-            elasticsearch=elasticsearch,
-            index=elasticsearch_index,
-        )
-        snippets_module = PyTerrierSnippetsModule(pipeline)
-    else:
-        raise ValueError("Unknown documents module type.")
-
-    exact_answer_module: ExactAnswerModule
-    if exact_answer_module_type == "mock":
-        from mibi.modules.mock import MockExactAnswerModule
-        exact_answer_module = MockExactAnswerModule()
-    else:
-        raise ValueError("Unknown documents module type.")
-
-    ideal_answer_module: IdealAnswerModule
-    if ideal_answer_module_type == "mock":
-        from mibi.modules.mock import MockIdealAnswerModule
-        ideal_answer_module = MockIdealAnswerModule()
-    else:
-        raise ValueError("Unknown documents module type.")
-    answer_module: AnswerModule
-    if answer_module_type == "standard":
-        from mibi.modules.standard import StandardAnswerModule
-        answer_module = StandardAnswerModule(
-            documents_module=documents_module,
-            snippets_module=snippets_module,
-            exact_answer_module=exact_answer_module,
-            ideal_answer_module=ideal_answer_module,
-        )
-    elif answer_module_type == "incremental":
-        from mibi.modules.incremental import IncrementalAnswerModule
-        answer_module = IncrementalAnswerModule(
-            documents_module=documents_module,
-            snippets_module=snippets_module,
-            exact_answer_module=exact_answer_module,
-            ideal_answer_module=ideal_answer_module,
-        )
-    elif answer_module_type == "independent":
-        from mibi.modules.independent import IndependentAnswerModule
-        answer_module = IndependentAnswerModule(
-            documents_module=documents_module,
-            snippets_module=snippets_module,
-            exact_answer_module=exact_answer_module,
-            ideal_answer_module=ideal_answer_module,
-        )
-    else:
-        raise ValueError("Unknown documents module type.")
+    answer_module = build_answer_module(
+        documents_module_type=documents_module_type,
+        snippets_module_type=snippets_module_type,
+        exact_answer_module_type=exact_answer_module_type,
+        ideal_answer_module_type=ideal_answer_module_type,
+        answer_module_type=answer_module_type,
+        language_model_name=language_model_name,
+        elasticsearch_url=elasticsearch_url,
+        elasticsearch_username=elasticsearch_username,
+        elasticsearch_password=elasticsearch_password,
+        elasticsearch_index=elasticsearch_index,
+    )
 
     questions = data.questions
     if first_questions is not None:
