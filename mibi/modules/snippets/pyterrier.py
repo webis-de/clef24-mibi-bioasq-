@@ -33,11 +33,11 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
         if "docno" in res.columns:
             if any(res["docno"].isna()):
                 raise ValueError(
-                    "Cannot parse snippets due to missing `pubmed_id` values.")
+                    "Cannot parse snippets due to missing `docno` values.")
             return [
                 Snippet(
                     document=Url(
-                        f"https://pubmed.ncbi.nlm.nih.gov/{row['pubmed_id']}"),
+                        f"https://pubmed.ncbi.nlm.nih.gov/{row['docno'].split('%', maxsplit=1)[0]}"),
                     text=row["text"],
                     begin_section=row["snippet_begin_section"],
                     offset_in_begin_section=row["snippet_offset_in_begin_section"],
