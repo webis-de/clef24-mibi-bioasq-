@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+from warnings import catch_warnings, filterwarnings
 from pandas import DataFrame
 from pyterrier.batchretrieve import TextScorer
 from pyterrier.transformer import Transformer
@@ -25,12 +26,19 @@ class SnippetsPipeline(Transformer):
     elasticsearch_index: str | None
     bm25_rerank: bool = True
     # pointwise_model: str = "castorini/monot5-base-msmarco"  # monoT5
+    # pointwise_model: str = "castorini/monot5-base-med-msmarco"  # monoT5
+    # pointwise_model: str = "castorini/monot5-3b-msmarco"  # monoT5
+    # pointwise_model: str = "castorini/monot5-3b-med-msmarco"  # monoT5
+    # pointwise_model: str = "castorini/monot5-base-msmarco"  # monoT5
     pointwise_model: str = "sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco"  # TAS-B
     # pointwise_model: str = "sentence-transformers/msmarco-distilbert-base-tas-b"  # TAS-B
+    # pointwise_model: str = "pinecone/msmarco-distilbert-base-tas-b-covid"  # TAS-B
     # pointwise_model: str = "castorini/tct_colbert-msmarco"  # TCT-ColBERT
     # pointwise_model: str = "castorini/tct_colbert-v2-msmarco"  # TCT-ColBERT
     # pointwise_model: str = "sentence-transformers/msmarco-roberta-base-ance-firstp"  # ANCE
     pairwise_model: str = "castorini/duot5-base-msmarco"  # duoT5
+    # pairwise_model: str = "castorini/duot5-3b-msmarco"  # duoT5
+    # pairwise_model: str = "castorini/duot5-3b-med-msmarco"  # duoT5
 
     @cached_property
     def _pipeline(self) -> Transformer:
@@ -66,8 +74,10 @@ class SnippetsPipeline(Transformer):
                 model=self.pointwise_model, verbose=True)
         elif ("tas-b" in self.pointwise_model or
               "tas_b" in self.pointwise_model):
-            pointwise_reranker = TasB(
-                model_name=self.pointwise_model, verbose=True)
+            with catch_warnings():
+                filterwarnings(action="ignore", message="TypedStorage is deprecated", category=UserWarning)
+                pointwise_reranker = TasB(
+                    model_name=self.pointwise_model, verbose=True)
         elif ("tct-colbert" in self.pointwise_model or
               "tct_colbert" in self.pointwise_model):
             pointwise_reranker = TctColBert(
@@ -88,8 +98,10 @@ class SnippetsPipeline(Transformer):
         # TODO: Choose pointwise re-ranker.
         pairwise_reranker: Transformer | None
         if "duot5" in self.pairwise_model:
-            pairwise_reranker = DuoT5ReRanker(
-                model=self.pairwise_model, verbose=True)
+            with catch_warnings():
+                filterwarnings(action="ignore", message="TypedStorage is deprecated", category=UserWarning)
+                pairwise_reranker = DuoT5ReRanker(
+                    model=self.pairwise_model, verbose=True)
         else:
             pairwise_reranker = None
         if pairwise_reranker is not None:
@@ -109,3 +121,6 @@ class SnippetsPipeline(Transformer):
             path=PROJECT_DIR / "data" / "snippets")
 
         return pipeline
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        return self._pipeline.transform(topics_or_res)

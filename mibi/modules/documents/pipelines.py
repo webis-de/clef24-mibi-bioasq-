@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Hashable
+from warnings import catch_warnings, simplefilter
 from elasticsearch7_dsl.query import Query, Match, Exists, Nested, Bool, Terms
 from pandas import DataFrame
 from pyterrier.transformer import Transformer
@@ -54,7 +55,9 @@ _DISALLOWED_PUBLICATION_TYPES = [
 def _build_query(row: dict[Hashable, Any]) -> Query:
     query = str(row["query"])
 
-    language: Language = spacy_load("en_core_sci_sm")
+    with catch_warnings():
+        simplefilter(action="ignore", category=FutureWarning)
+        language: Language = spacy_load("en_core_sci_sm")
     doc = language(query)
 
     query_stop_words_removed = " ".join(
