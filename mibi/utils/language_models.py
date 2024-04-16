@@ -1,6 +1,7 @@
 from os import environ
 from typing import Literal
-from dspy import OpenAI as DSPyOpenAI, settings as dspy_settings
+from dspy import OpenAI as DSPyOpenAI, HFModel, settings as dspy_settings
+from dsp import LM
 
 
 def init_language_model_clients(
@@ -12,26 +13,17 @@ def init_language_model_clients(
         "Mistral-7B-Instruct-v0.2",
     ],
 ) -> None:
-    if language_model_name in (
-        "text-davinci-003",
-        "Mixtral-8x7B-Instruct-v0.1",
-        "Mistral-7B-Instruct-v0.2",
-    ) and "BLABLADOR_API_KEY" in environ.keys():
-        dspy_settings.configure(
-            lm=DSPyOpenAI(
-                model=language_model_name,
-                api_key=environ["BLABLADOR_API_KEY"],
-                api_base="https://helmholtz-blablador.fz-juelich.de:8000/v1/"
-            ),
-        )
-    elif language_model_name in (
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0125",
-    ):
-        dspy_settings.configure(
-            lm=DSPyOpenAI(
-                model=language_model_name,
-            ),
+    lm: LM
+    if "OPENAI_API_KEY" in environ.keys():
+        lm = DSPyOpenAI(
+            model=language_model_name,
+            api_key=environ["OPENAI_API_KEY"],
+            api_base=environ.get("OPENAI_API_BASE")
         )
     else:
-        raise ValueError("Unknown language model.")
+        lm = HFModel(
+            model=language_model_name,
+        )
+    dspy_settings.configure(
+        lm=lm,
+    )
