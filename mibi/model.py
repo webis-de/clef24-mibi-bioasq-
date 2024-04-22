@@ -2,7 +2,7 @@ from re import compile as re_compile
 from typing import Annotated, Final, Literal, TypeAlias, Sequence, TypeVar
 
 from annotated_types import Len, Ge
-from pydantic import AfterValidator, AliasChoices, ConfigDict, Field, PlainSerializer, PlainValidator, SerializationInfo, UrlConstraints, ValidationInfo, BaseModel
+from pydantic import AfterValidator, AliasChoices, ConfigDict, Field, PlainSerializer, PlainValidator, SerializationInfo, TypeAdapter, UrlConstraints, ValidationInfo, BaseModel, WithJsonSchema
 from pydantic_core import Url
 
 
@@ -65,6 +65,10 @@ Documents: TypeAlias = Annotated[
 ]
 
 
+def _clamp_positive(value: int) -> int:
+    return 0 if value == -1 else value
+
+
 class Snippet(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -90,7 +94,15 @@ class Snippet(BaseModel):
             ),
             serialization_alias="offsetInBeginSection",
         ),
-        PlainValidator(lambda value: 0 if value == -1 else value),
+        PlainValidator(_clamp_positive),
+        WithJsonSchema(
+            TypeAdapter(int).json_schema(),
+            mode="validation",
+        ),
+        WithJsonSchema(
+            TypeAdapter(Annotated[int, Ge(0)]).json_schema(),  # type: ignore
+            mode="serialization",
+        ),
     ]
     end_section: Annotated[
         str,
@@ -141,6 +153,16 @@ IdealAnswer: TypeAlias = Annotated[
     str,
     PlainValidator(_first_of_json_sequence),
     PlainSerializer(_wrap_as_json_sequence),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1)]).json_schema(),  # type: ignore
+        mode="validation",
+    ),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        mode="serialization",
+    ),
 ]
 
 YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
@@ -150,6 +172,16 @@ FactoidExactAnswer: TypeAlias = Annotated[
     str,
     PlainValidator(_first_of_json_sequence),
     PlainSerializer(_wrap_as_json_sequence),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1)]).json_schema(),  # type: ignore
+        mode="validation",
+    ),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        mode="serialization",
+    ),
 ]
 
 
@@ -159,6 +191,16 @@ ListExactAnswer: TypeAlias = Annotated[
             str,
             PlainValidator(_first_of_json_sequence),
             PlainSerializer(_wrap_as_json_sequence),
+            WithJsonSchema(
+                TypeAdapter(Annotated[Sequence[str], Len(
+                    min_length=1)]).json_schema(),  # type: ignore
+                mode="validation",
+            ),
+            WithJsonSchema(
+                TypeAdapter(Annotated[Sequence[str], Len(
+                    min_length=1, max_length=1)]).json_schema(),  # type: ignore
+                mode="serialization",
+            ),
         ]
     ],
     Len(min_length=1),
