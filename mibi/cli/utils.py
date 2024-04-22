@@ -1,6 +1,7 @@
 from pathlib import Path
+from click import UsageError, echo, Path as PathType, argument, group, option
 
-from click import UsageError, echo, Path as PathType, argument, group
+from mibi.utils.language_models import init_language_model_clients
 
 
 @group()
@@ -94,3 +95,22 @@ def merge(input_path: Path, results_paths: list[Path], output_path: Path) -> Non
             by_alias=True,
         ))
     echo(f"Answered {len(output_data.questions)} questions.")
+
+
+@utils.command()
+@option(
+    "-l", "--llm", "--language-model-name", "language_model_name",
+    type=str,
+    default="gpt-3.5-turbo",
+)
+@argument(
+    "prompt",
+    type=str,
+    default="Hello world!"
+)
+def test_llm(
+    language_model_name: str,
+    prompt: str,
+) -> None:
+    lm = init_language_model_clients(language_model_name)
+    print(lm(prompt))

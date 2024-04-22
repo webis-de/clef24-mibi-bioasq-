@@ -81,7 +81,7 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
         "Mixtral-8x7B-Instruct-v0.1",
         "Mistral-7B-Instruct-v0.2",
     ]),
-    default="gpt-3.5-turbo-0125",
+    default="gpt-3.5-turbo",
 )
 @option(
     "-n", "--first", "--first-questions", "first_questions",
@@ -131,13 +131,7 @@ def run(
         "incremental",
         "independent",
     ],
-    language_model_name: Literal[
-        "gpt-3.5-turbo",
-        "gpt-3.5-turbo-0125",
-        "text-davinci-003",
-        "Mixtral-8x7B-Instruct-v0.1",
-        "Mistral-7B-Instruct-v0.2",
-    ],
+    language_model_name: str,
     first_questions: int | None,
     elasticsearch_url: str | None,
     elasticsearch_username: str | None,
