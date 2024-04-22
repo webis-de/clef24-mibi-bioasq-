@@ -50,7 +50,6 @@ PubMedUrl = Annotated[
 Document: TypeAlias = PubMedUrl
 
 _T1 = TypeVar("_T1")
-_T2 = TypeVar("_T2")
 
 
 def _cut_off_at_10(value: Sequence[_T1]) -> Annotated[Sequence[_T1], Len(max_length=10)]:
@@ -135,14 +134,18 @@ Snippets: TypeAlias = Annotated[
 ]
 
 
-def _first_of_json_sequence(value: Sequence[_T1] | _T1, info: ValidationInfo) -> _T1:
-    if info.mode == "json":
-        return value[0]  # type: ignore
+def _first_str_of_json_sequence(
+        value: Annotated[Sequence[str], Len(min_length=1)] | str) -> str:
+    if isinstance(value, str):
+        return value
     else:
-        return value   # type: ignore
+        return value[0]
 
 
-def _wrap_as_json_sequence(value: _T1, info: SerializationInfo) -> Sequence[_T1] | _T1:
+def _wrap_str_as_json_sequence(
+    value: str,
+    info: SerializationInfo,
+) -> Annotated[Sequence[str], Len(min_length=1, max_length=1)] | str:
     if info.mode == "json":
         return [value]
     else:
@@ -151,8 +154,8 @@ def _wrap_as_json_sequence(value: _T1, info: SerializationInfo) -> Sequence[_T1]
 
 IdealAnswer: TypeAlias = Annotated[
     str,
-    PlainValidator(_first_of_json_sequence),
-    PlainSerializer(_wrap_as_json_sequence),
+    PlainValidator(_first_str_of_json_sequence),
+    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(Annotated[Sequence[str], Len(
             min_length=1)]).json_schema(),  # type: ignore
@@ -170,8 +173,25 @@ YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
 
 FactoidExactAnswer: TypeAlias = Annotated[
     str,
-    PlainValidator(_first_of_json_sequence),
-    PlainSerializer(_wrap_as_json_sequence),
+    PlainValidator(_first_str_of_json_sequence),
+    PlainSerializer(_wrap_str_as_json_sequence),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1)]).json_schema(),  # type: ignore
+        mode="validation",
+    ),
+    WithJsonSchema(
+        TypeAdapter(Annotated[Sequence[str], Len(
+            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        mode="serialization",
+    ),
+]
+
+
+ListExactAnswerItem: TypeAlias = Annotated[
+    str,
+    PlainValidator(_first_str_of_json_sequence),
+    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(Annotated[Sequence[str], Len(
             min_length=1)]).json_schema(),  # type: ignore
@@ -186,23 +206,7 @@ FactoidExactAnswer: TypeAlias = Annotated[
 
 
 ListExactAnswer: TypeAlias = Annotated[
-    Sequence[
-        Annotated[
-            str,
-            PlainValidator(_first_of_json_sequence),
-            PlainSerializer(_wrap_as_json_sequence),
-            WithJsonSchema(
-                TypeAdapter(Annotated[Sequence[str], Len(
-                    min_length=1)]).json_schema(),  # type: ignore
-                mode="validation",
-            ),
-            WithJsonSchema(
-                TypeAdapter(Annotated[Sequence[str], Len(
-                    min_length=1, max_length=1)]).json_schema(),  # type: ignore
-                mode="serialization",
-            ),
-        ]
-    ],
+    Sequence[ListExactAnswerItem],
     Len(min_length=1),
 ]
 
