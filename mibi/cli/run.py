@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from click import Choice, IntRange, UsageError, echo, option, Path as PathType, argument, command
+from click import Choice, IntRange, echo, option, Path as PathType, argument, command
 
 
 @command()
@@ -50,16 +50,18 @@ from click import Choice, IntRange, UsageError, echo, option, Path as PathType, 
 @option(
     "-e", "--exact-answer-module", "exact_answer_module_type",
     type=Choice([
+        "llm",
         "mock",
     ]),
-    default="mock",
+    default="llm",
 )
 @option(
     "-i", "--ideal-answer-module", "ideal_answer_module_type",
     type=Choice([
+        "llm",
         "mock",
     ]),
-    default="mock",
+    default="llm",
 )
 @option(
     "-a", "--answer-module", "answer_module_type",
@@ -117,9 +119,11 @@ def run(
         "pyterrier",
     ],
     exact_answer_module_type: Literal[
+        "llm",
         "mock",
     ],
     ideal_answer_module_type: Literal[
+        "llm",
         "mock",
     ],
     answer_module_type: Literal[
