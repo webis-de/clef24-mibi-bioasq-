@@ -190,5 +190,6 @@ def run(
     with output_path.open("wt") as output_file:
         output_file.write(answered_data.model_dump_json(
             indent=2,
+            by_alias=True,
         ))
     echo(f"Answered {len(answered_data.questions)} questions.")

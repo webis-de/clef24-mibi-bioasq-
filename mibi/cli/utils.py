@@ -91,5 +91,6 @@ def merge(input_path: Path, results_paths: list[Path], output_path: Path) -> Non
     with output_path.open("wt") as output_file:
         output_file.write(output_data.model_dump_json(
             indent=2,
+            by_alias=True,
         ))
     echo(f"Answered {len(output_data.questions)} questions.")
