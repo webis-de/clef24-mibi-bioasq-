@@ -1,9 +1,13 @@
-from typing import TypeAlias, cast
+from typing import Annotated, Sequence, TypeAlias, cast
+from warnings import catch_warnings, simplefilter
 
+from annotated_types import Len
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
+from spacy import load as spacy_load
+from spacy.language import Language
 
-from mibi.model import Question, PartialAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
+from mibi.model import ListExactAnswerItem, Question, PartialAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
 from mibi.modules.helpers import AutoExactAnswerModule
 
 
@@ -11,63 +15,150 @@ Context: TypeAlias = list[str]
 
 
 class YesNoInput(BaseModel):
-    question: str = Field(
-        description="The yes-no question that should be answered.")
-    context: Context = Field(
-        description="Context that should be used to answer the question.")
+    question: Annotated[
+        str,
+        Field(
+            description="The yes-no question that should be answered.",
+        ),
+    ]
+    context: Annotated[
+        Context,
+        Field(
+            description="Context that should be used to answer the question.",
+        ),
+    ]
 
 
 class YesNoOutput(BaseModel):
-    answer: YesNoExactAnswer = Field(
-        description="The yes-no answer to the given question.")
+    answer: Annotated[
+        YesNoExactAnswer,
+        Field(
+            description="The yes-no answer to the given question.",
+        ),
+    ]
 
 
 class YesNoPredict(Signature):
     """Answer the medical yes-no question based on the given context (from a relevant medical abstract), basic medical knowledge, and current standard practices from medical guidelines. The answer should be based mostly on the given context if it is factually correct."""
-    input: YesNoInput = InputField()
-    output: YesNoOutput = OutputField()
+
+    input: Annotated[
+        YesNoInput,
+        InputField(),
+    ]
+    output: Annotated[
+        YesNoOutput,
+        OutputField(),
+    ]
 
 
 class FactoidInput(BaseModel):
-    question: str = Field(
-        description="The factoid question that should be answered.")
-    context: Context = Field(
-        description="Context that should be used to answer the question.")
+    question: Annotated[
+        str,
+        Field(
+            description="The factoid question that should be answered.",
+        ),
+    ]
+    context: Annotated[
+        Context,
+        Field(
+            description="Context that should be used to answer the question.",
+        ),
+    ]
+
+
+def _check_short_answer(value: str) -> str:
+    with catch_warnings():
+        simplefilter(action="ignore", category=FutureWarning)
+        language: Language = spacy_load("en_core_sci_sm")
+    doc = language(value)
+
+    num_tokens = sum(1 for _ in doc)
+    if num_tokens > 5:
+        raise ValueError("Must not be longer than 5 words.")
+
+    return value
+
+
+_ShortFactoidExactAnswer: TypeAlias = Annotated[
+    FactoidExactAnswer,
+    AfterValidator(_check_short_answer),
+]
 
 
 class FactoidOutput(BaseModel):
-    answer: FactoidExactAnswer = Field(
-        description="The factoid answer to the given question. The answer should be just a short fact (e.g., a single entity or a very short phrase).")
+    answer: Annotated[
+        _ShortFactoidExactAnswer,
+        Field(
+            description="The factoid answer to the given question. The answer should contain just the name of the entity, number, or other similar short expression sought by the question, not a complete sentence.",
+        ),
+    ]
 
 
 class FactoidPredict(Signature):
     """Answer the medical factoid question based on the given context (from a relevant medical abstract), basic medical knowledge, and current standard practices from medical guidelines. The answer should be based mostly on the given context if it is factually correct."""
-    input: FactoidInput = InputField()
-    output: FactoidOutput = OutputField()
+
+    input: Annotated[
+        FactoidInput,
+        InputField(),
+    ]
+    output: Annotated[
+        FactoidOutput,
+        OutputField(),
+    ]
 
 
 class ListInput(BaseModel):
-    question: str = Field(
-        description="The list question that should be answered.")
-    context: Context = Field(
-        description="Context that should be used to answer the question.")
+    question: Annotated[
+        str,
+        Field(
+            description="The list question that should be answered.",
+        ),
+    ]
+    context: Annotated[
+        Context,
+        Field(
+            description="Context that should be used to answer the question.",
+        ),
+    ]
+
+
+_ShortListExactAnswerItem: TypeAlias = Annotated[
+    ListExactAnswerItem,
+    AfterValidator(_check_short_answer),
+]
+
+_ShortListExactAnswer: TypeAlias = Annotated[
+    Sequence[_ShortListExactAnswerItem],
+    Len(min_length=1),
+]
 
 
 class ListOutput(BaseModel):
-    answer: ListExactAnswer = Field(
-        description="The list answer to the given question. The answer should contain up to 5 entities.")
+    answer: Annotated[
+        _ShortListExactAnswer,
+        Field(
+            description="The list answer to the given question. The answer should contain up to 5 short names of the entities sought by the question.",
+        ),
+    ]
 
 
 class ListPredict(Signature):
     """Answer the medical list question based on the given context (from a relevant medical abstract), basic medical knowledge, and current standard practices from medical guidelines. The answer should be based mostly on the given context if it is factually correct."""
-    input: ListInput = InputField()
-    output: ListOutput = OutputField()
+
+    input: Annotated[
+        ListInput,
+        InputField(),
+    ]
+    output: Annotated[
+        ListOutput,
+        OutputField(),
+    ]
 
 
 class LlmExactAnswerModule(AutoExactAnswerModule):
-    _yes_no_predict = TypedPredictor(signature=YesNoPredict)
-    _factoid_predict = TypedPredictor(signature=FactoidPredict)
-    _list_predict = TypedPredictor(signature=ListPredict)
+    _yes_no_predict = TypedPredictor(signature=YesNoPredict, max_retries=3)
+    _factoid_predict = TypedPredictor(signature=FactoidPredict, max_retries=5)
+    _list_predict = TypedPredictor(signature=ListPredict, max_retries=10)
 
     def _context(self, partial_answer: PartialAnswer) -> Context:
         if partial_answer.snippets is not None:
