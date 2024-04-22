@@ -1,6 +1,6 @@
 from typing import TypeAlias, cast
 
-from dspy import Module, Signature, Prediction, InputField, OutputField, TypedPredictor
+from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
 from pydantic import BaseModel, Field
 
 from mibi.model import Question, PartialAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
@@ -36,7 +36,7 @@ class FactoidInput(BaseModel):
 
 
 class FactoidOutput(BaseModel):
-    answer: str = Field(
+    answer: FactoidExactAnswer = Field(
         description="The factoid answer to the given question. The answer should be just a short fact (e.g., a single entity or a very short phrase).")
 
 
@@ -54,7 +54,7 @@ class ListInput(BaseModel):
 
 
 class ListOutput(BaseModel):
-    answer: list[str] = Field(
+    answer: ListExactAnswer = Field(
         description="The list answer to the given question. The answer should contain up to 5 entities.")
 
 
@@ -102,8 +102,8 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
         )
         prediction: Prediction = self._factoid_predict.forward(input=input)
         output = cast(FactoidOutput, prediction.output)
-        # TODO: Additional validations using DSPy assertions?
-        return [output.answer]
+        # TODO: Additional validations using DSPy assertions (e.g., not too long)?
+        return output.answer
 
     def forward_list(
             self,
@@ -116,5 +116,5 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
         )
         prediction: Prediction = self._list_predict.forward(input=input)
         output = cast(ListOutput, prediction.output)
-        # TODO: Additional validations using DSPy assertions?
-        return [[item] for item in output.answer]
+        # TODO: Additional validations using DSPy assertions (e.g., not too long)?
+        return output.answer

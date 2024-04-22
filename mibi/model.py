@@ -1,6 +1,8 @@
-from typing import Annotated, Final, Literal, TypeAlias, Sequence
+from re import compile as re_compile
+from typing import Annotated, Final, Literal, TypeAlias, Sequence, TypeVar
+
 from annotated_types import Len, Ge
-from pydantic import AliasChoices, BaseModel, Field, UrlConstraints
+from pydantic import AfterValidator, AliasChoices, ConfigDict, Field, PlainSerializer, PlainValidator, SerializationInfo, UrlConstraints, ValidationInfo, BaseModel
 from pydantic_core import Url
 
 
@@ -11,16 +13,28 @@ QuestionType: TypeAlias = Literal[
     "summary",
 ]
 
-QuestionId = Annotated[
+QuestionId: TypeAlias = Annotated[
     str,
     Len(min_length=24, max_length=25),
 ]
 
 
 class Question(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     id: QuestionId
     type: QuestionType
     body: str
+
+
+_PUBMED_URL_PATTERN = re_compile(
+    r"https?:\/\/(?:pubmed.ncbi.nlm.nih.gov|(?:www.)ncbi.nlm.nih.gov\/pubmed)/[1-9][0-9]*\/?")
+
+
+def _validate_pubmed_url(url: Url) -> Url:
+    if _PUBMED_URL_PATTERN.fullmatch(f"{url}") is None:
+        raise ValueError(f"Not a valid PubMed URL: {url}")
+    return url
 
 
 PubMedUrl = Annotated[
@@ -30,69 +44,121 @@ PubMedUrl = Annotated[
         allowed_schemes=['http', 'https'],
         host_required=True,
     ),
+    AfterValidator(_validate_pubmed_url),
 ]
 
 Document: TypeAlias = PubMedUrl
 
+_T1 = TypeVar("_T1")
+_T2 = TypeVar("_T2")
+
+
+def _cut_off_at_10(value: Sequence[_T1]) -> Annotated[Sequence[_T1], Len(max_length=10)]:
+    return value[:10]
+
+
 Documents: TypeAlias = Annotated[
     Sequence[Document],
-    Len(min_length=1, max_length=10),
+    Len(min_length=1),
+    # PlainValidator(_cut_off_at_10),
+    PlainSerializer(_cut_off_at_10),
 ]
 
 
 class Snippet(BaseModel):
-    document: Document = Field(frozen=True)
-    text: str = Field(frozen=True)
-    begin_section: str = Field(
-        frozen=True,
-        validation_alias=AliasChoices("begin_section", "beginSection"),
-        serialization_alias="beginSection",
-    )
+    model_config = ConfigDict(frozen=True)
+
+    document: Document
+    text: str
+    begin_section: Annotated[
+        str,
+        Field(
+            validation_alias=AliasChoices(
+                "begin_section",
+                "beginSection",
+            ),
+            serialization_alias="beginSection",
+        )
+    ]
     offset_in_begin_section: Annotated[
         int,
         Ge(0),
-    ] = Field(
-        frozen=True,
-        validation_alias=AliasChoices(
-            "offset_in_begin_section", "offsetInBeginSection"),
-        serialization_alias="offsetInBeginSection",
-    )
-    end_section: str = Field(
-        frozen=True,
-        validation_alias=AliasChoices("end_section", "endSection"),
-        serialization_alias="endSection",
-    )
+        Field(
+            validation_alias=AliasChoices(
+                "offset_in_begin_section",
+                "offsetInBeginSection",
+            ),
+            serialization_alias="offsetInBeginSection",
+        ),
+        PlainValidator(lambda value: 0 if value == -1 else value),
+    ]
+    end_section: Annotated[
+        str,
+        Field(
+            validation_alias=AliasChoices(
+                "end_section",
+                "endSection",
+            ),
+            serialization_alias="endSection",
+        ),
+    ]
     offset_in_end_section: Annotated[
         int,
         Ge(0),
-    ] = Field(
-        frozen=True,
-        validation_alias=AliasChoices(
-            "offset_in_end_section", "offsetInEndSection"),
-        serialization_alias="offsetInEndSection",
-    )
+        Field(
+            validation_alias=AliasChoices(
+                "offset_in_end_section",
+                "offsetInEndSection",
+            ),
+            serialization_alias="offsetInEndSection",
+        ),
+    ]
 
 
 Snippets: TypeAlias = Annotated[
     Sequence[Snippet],
-    Len(
-        min_length=1,
-        # max_length=10,
-    ),
+    Len(min_length=1),
+    # PlainValidator(_cut_off_at_10),
+    PlainSerializer(_cut_off_at_10),
+]
+
+
+def _first_of_json_sequence(value: Sequence[_T1] | _T1, info: ValidationInfo) -> _T1:
+    if info.mode == "json":
+        return value[0]  # type: ignore
+    else:
+        return value   # type: ignore
+
+
+def _wrap_as_json_sequence(value: _T1, info: SerializationInfo) -> Sequence[_T1] | _T1:
+    if info.mode == "json":
+        return [value]
+    else:
+        return value
+
+
+IdealAnswer: TypeAlias = Annotated[
+    str,
+    PlainValidator(_first_of_json_sequence),
+    PlainSerializer(_wrap_as_json_sequence),
 ]
 
 YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
 
+
 FactoidExactAnswer: TypeAlias = Annotated[
-    Sequence[str],
-    Len(min_length=1),
+    str,
+    PlainValidator(_first_of_json_sequence),
+    PlainSerializer(_wrap_as_json_sequence),
 ]
+
 
 ListExactAnswer: TypeAlias = Annotated[
     Sequence[
         Annotated[
-            Sequence[str],
-            Len(min_length=1),
+            str,
+            PlainValidator(_first_of_json_sequence),
+            PlainSerializer(_wrap_as_json_sequence),
         ]
     ],
     Len(min_length=1),
@@ -102,23 +168,30 @@ ListExactAnswer: TypeAlias = Annotated[
 SummaryExactAnswer: TypeAlias = Literal["n/a"]
 NOT_AVAILABLE: Final[SummaryExactAnswer] = "n/a"
 
-IdealAnswer: TypeAlias = str
 
-ExactAnswer: TypeAlias = YesNoExactAnswer | FactoidExactAnswer | ListExactAnswer | SummaryExactAnswer
+ExactAnswer: TypeAlias = Annotated[
+    # Attention! The order of this union matters for serialization.
+    YesNoExactAnswer | SummaryExactAnswer | ListExactAnswer | FactoidExactAnswer,
+    Field(union_mode="left_to_right")
+]
 
 
 class PartialAnswer(BaseModel):
-    documents: Documents | None = Field(frozen=True, default=None)
-    snippets: Snippets | None = Field(frozen=True, default=None)
-    ideal_answer: IdealAnswer | None = Field(frozen=True, default=None)
-    exact_answer: ExactAnswer | None = Field(frozen=True, default=None)
+    model_config = ConfigDict(frozen=True)
+
+    documents: Documents | None = None
+    snippets: Snippets | None = None
+    ideal_answer: IdealAnswer | None = None
+    exact_answer: ExactAnswer | None = None
 
 
 class Answer(BaseModel):
-    documents: Documents = Field(frozen=True)
-    snippets: Snippets = Field(frozen=True)
-    ideal_answer: IdealAnswer = Field(frozen=True)
-    exact_answer: ExactAnswer = Field(frozen=True)
+    model_config = ConfigDict(frozen=True)
+
+    documents: Documents
+    snippets: Snippets
+    ideal_answer: IdealAnswer
+    exact_answer: ExactAnswer
 
 
 class AnsweredQuestion(Answer, Question):
@@ -126,7 +199,9 @@ class AnsweredQuestion(Answer, Question):
 
 
 class AnsweredQuestionData(BaseModel):
-    questions: Sequence[AnsweredQuestion] = Field(frozen=True)
+    model_config = ConfigDict(frozen=True)
+
+    questions: Sequence[AnsweredQuestion]
 
 
 class PartiallyAnsweredQuestion(PartialAnswer, Question):
@@ -164,9 +239,12 @@ class PartiallyAnsweredQuestion(PartialAnswer, Question):
 
 
 class PartiallyAnsweredQuestionData(BaseModel):
+    model_config = ConfigDict(frozen=True)
 
-    questions: Sequence[PartiallyAnsweredQuestion] = Field(frozen=True)
+    questions: Sequence[PartiallyAnsweredQuestion]
 
 
 class QuestionData(BaseModel):
-    questions: Sequence[Question] = Field(frozen=True)
+    model_config = ConfigDict(frozen=True)
+
+    questions: Sequence[Question]
