@@ -6,6 +6,7 @@
   - Idea: Use QA models and measure overlap/spans that are both in the QA model output and the title/abstract (only first answer for title, top-k answers for abstract)
   - Fine-tuning possible with BioASQ training data
   - Choose a fitting pre-trained QA model from HuggingFace Hub (e.g., trained for medical QA)
+  - Explore scoring based on publication date using [function score](https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-function-score-query.html#function-script-score)
 - [ ] State transitions:
   - [ ] To documents, with conditions:
     - [ ] A
