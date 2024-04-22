@@ -126,7 +126,6 @@ skips = ["**/test_*.py"]
 
 [tool.pytest.ini_options]
 log_cli = "True"
-
 filterwarnings = [
     'ignore:FUNCTIONS is deprecated and will be removed in future versions:DeprecationWarning',
 ]
