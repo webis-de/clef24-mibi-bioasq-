@@ -3,9 +3,10 @@ from functools import cached_property
 from typing import Any, Hashable
 from warnings import catch_warnings, simplefilter
 from elasticsearch7_dsl.query import Query, Match, Exists, Nested, Bool, Terms
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from pyterrier.transformer import Transformer
 from pyterrier.text import MaxPassage
+from pyterrier.apply import query
 from spacy import load as spacy_load
 from spacy.language import Language
 
@@ -52,8 +53,13 @@ _DISALLOWED_PUBLICATION_TYPES = [
 ]
 
 
+
+
 def _build_query(row: dict[Hashable, Any]) -> Query:
     query = str(row["query"])
+
+    # TODO: Rank based on the query type.
+    # query_type = str(row["query_type"])
 
     with catch_warnings():
         simplefilter(action="ignore", category=FutureWarning)
@@ -159,6 +165,26 @@ def _build_result(article: Article) -> dict[Hashable, Any]:
     }
 
 
+def _expand_query(row: Series) -> str:
+    query = str(row["query"])
+
+    if "exact_answer" in row.keys():
+        exact_answer = str(row["exact_answer"])
+        exact_answer = exact_answer.capitalize().removesuffix(".")
+        query = f"{query} {exact_answer}."
+        print(query)
+
+    if "ideal_answer" in row.keys():
+        ideal_answer = str(row["ideal_answer"])
+        ideal_answer = ideal_answer.capitalize().removesuffix(".")
+        query = f"{query} {ideal_answer}."
+        print(query)
+
+    return query
+
+expand_query = query(_expand_query)
+
+
 @dataclass(frozen=True)
 class DocumentsPipeline(Transformer):
     elasticsearch_url: str
@@ -175,6 +201,9 @@ class DocumentsPipeline(Transformer):
             transformer_true=de_passager,
             transformer_false=Transformer.identity(),
         )
+
+        # Expand the query with previous answers.
+        pipeline = pipeline >> expand_query
 
         # Retrieve or re-rank documents with Elasticsearch (BM25).
         pipeline = pipeline >> ElasticsearchTransformer(
