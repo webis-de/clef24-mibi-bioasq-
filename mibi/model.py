@@ -1,3 +1,4 @@
+from functools import cached_property
 from re import compile as re_compile
 from typing import Annotated, Final, Literal, TypeAlias, Sequence, TypeVar
 
@@ -231,7 +232,7 @@ class PartialAnswer(BaseModel):
     exact_answer: ExactAnswer | None = None
 
 
-class Answer(BaseModel):
+class Answer(PartialAnswer, BaseModel):
     model_config = ConfigDict(frozen=True)
 
     documents: Documents
@@ -240,25 +241,51 @@ class Answer(BaseModel):
     exact_answer: ExactAnswer
 
 
-class AnsweredQuestion(Answer, Question):
-    pass
-
-
-class AnsweredQuestionData(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    questions: Sequence[AnsweredQuestion]
-
-
 class PartiallyAnsweredQuestion(PartialAnswer, Question):
 
     @classmethod
-    def from_question(cls, question: Question) -> "PartiallyAnsweredQuestion":
+    def from_question(
+        cls,
+        question: Question,
+        partial_answer: PartialAnswer | None = None,
+    ) -> "PartiallyAnsweredQuestion":
         return PartiallyAnsweredQuestion(
             id=question.id,
             type=question.type,
             body=question.body,
+            documents=partial_answer.documents \
+                if partial_answer is not None else None,
+            snippets=partial_answer.snippets \
+                if partial_answer is not None else None,
+            ideal_answer=partial_answer.ideal_answer \
+                if partial_answer is not None else None,
+            exact_answer=partial_answer.exact_answer \
+                if partial_answer is not None else None,
         )
+
+    @cached_property
+    def exact_answer_text(self) -> str | None:
+        if self.exact_answer is None:
+            return None
+        if self.type == "summary":
+            if self.exact_answer is not NOT_AVAILABLE:
+                raise ValueError()
+            return None
+        elif self.type == "yesno":
+            if not isinstance(self.exact_answer, str):
+                raise ValueError()
+            return self.exact_answer
+        elif self.type == "factoid":
+            if not isinstance(self.exact_answer, str):
+                raise ValueError()
+            return self.exact_answer
+        elif self.type == "list":
+            if not isinstance(self.exact_answer, Sequence):
+                raise ValueError()
+            return ", ".join(self.exact_answer)
+        else:
+            raise ValueError(
+                f"Unknown question type: {self.type}")
 
     def merge(self, question: "PartiallyAnsweredQuestion") -> "PartiallyAnsweredQuestion":
         if self.id != question.id:
@@ -288,6 +315,16 @@ class PartiallyAnsweredQuestionData(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     questions: Sequence[PartiallyAnsweredQuestion]
+
+
+class AnsweredQuestion(PartiallyAnsweredQuestion, Answer, Question):
+    pass
+
+
+class AnsweredQuestionData(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    questions: Sequence[AnsweredQuestion]
 
 
 class QuestionData(BaseModel):
