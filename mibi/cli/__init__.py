@@ -32,7 +32,8 @@ def echo_version(
 )
 def cli() -> None:
     if find_dotenv():
-        load_dotenv()
+        print("Loading configuration from .env file.")
+        load_dotenv(override=True)
 
 
 cli.add_command(run)
