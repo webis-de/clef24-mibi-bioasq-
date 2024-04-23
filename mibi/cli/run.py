@@ -66,11 +66,14 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
 @option(
     "-a", "--answer-module", "answer_module_type",
     type=Choice([
-        "standard",
+        "retrieve-then-generate", "rtg",
+        "generate-then-retrieve", "gtr",
+        "retrieve-then-generate-then-retrieve", "rtgtr",
+        "generate-retrieve-then-generate", "gtrtg",
         "incremental",
         "independent",
     ]),
-    default="standard",
+    default="retrieve-then-generate",
 )
 @option(
     "-l", "--llm", "--language-model-name", "language_model_name",
@@ -127,7 +130,10 @@ def run(
         "mock",
     ],
     answer_module_type: Literal[
-        "standard",
+        "retrieve-then-generate", "rtg",
+        "generate-then-retrieve", "gtr",
+        "retrieve-then-generate-then-retrieve", "rtgtr",
+        "generate-retrieve-then-generate", "gtrtg",
         "incremental",
         "independent",
     ],

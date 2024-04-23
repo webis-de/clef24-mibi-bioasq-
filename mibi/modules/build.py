@@ -8,7 +8,7 @@ from mibi.modules.ideal_answer.llm import LlmIdealAnswerModule
 from mibi.modules.incremental import IncrementalAnswerModule
 from mibi.modules.independent import IndependentAnswerModule
 from mibi.modules.mock import MockDocumentsModule, MockExactAnswerModule, MockIdealAnswerModule, MockSnippetsModule
-from mibi.modules.standard import StandardAnswerModule
+from mibi.modules.standard import RetrieveThenGenerateAnswerModule, GenerateThenRetrieveAnswerModule, RetrieveThenGenerateThenRetrieveAnswerModule, GenerateThenRetrieveThenGenerateAnswerModule
 from mibi.utils.language_models import init_language_model_clients
 
 
@@ -30,7 +30,10 @@ def build_answer_module(
         "llm",
     ],
     answer_module_type: Literal[
-        "standard",
+        "retrieve-then-generate", "rtg",
+        "generate-then-retrieve", "gtr",
+        "retrieve-then-generate-then-retrieve", "rtgtr",
+        "generate-retrieve-then-generate", "gtrtg",
         "incremental",
         "independent",
     ],
@@ -107,8 +110,29 @@ def build_answer_module(
 
     # Assemble full answer module.
     answer_module: AnswerModule
-    if answer_module_type == "standard":
-        answer_module = StandardAnswerModule(
+    if answer_module_type in ("retrieve-then-generate", "rtg"):
+        answer_module = RetrieveThenGenerateAnswerModule(
+            documents_module=documents_module,
+            snippets_module=snippets_module,
+            exact_answer_module=exact_answer_module,
+            ideal_answer_module=ideal_answer_module,
+        )
+    elif answer_module_type in ("generate-then-retrieve", "gtr"):
+        answer_module = GenerateThenRetrieveAnswerModule(
+            documents_module=documents_module,
+            snippets_module=snippets_module,
+            exact_answer_module=exact_answer_module,
+            ideal_answer_module=ideal_answer_module,
+        )
+    elif answer_module_type in ("retrieve-then-generate-then-retrieve", "rtgtr"):
+        answer_module = RetrieveThenGenerateThenRetrieveAnswerModule(
+            documents_module=documents_module,
+            snippets_module=snippets_module,
+            exact_answer_module=exact_answer_module,
+            ideal_answer_module=ideal_answer_module,
+        )
+    elif answer_module_type in ("generate-retrieve-then-generate", "gtrtg"):
+        answer_module = GenerateThenRetrieveThenGenerateAnswerModule(
             documents_module=documents_module,
             snippets_module=snippets_module,
             exact_answer_module=exact_answer_module,
