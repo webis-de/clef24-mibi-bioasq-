@@ -1,12 +1,12 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, Sequence, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from pandas import DataFrame
 from pyterrier.transformer import Transformer
 
-from mibi.model import NOT_AVAILABLE, Document,  PartialAnswer, Question, Snippet
+from mibi.model import Document, PartialAnswer, PartiallyAnsweredQuestion, Question, Snippet
 from mibi.modules import ABCModule
 
 
@@ -20,39 +20,20 @@ class PyTerrierModule(Generic[_T], ABCModule):
     @staticmethod
     def _question_data(
         question: Question,
-        # TODO fold.
         partial_answer: PartialAnswer,
     ) -> dict[str, Any]:
+        partially_answered_question = PartiallyAnsweredQuestion.from_question(question, partial_answer)
+
         data: dict[str, Any] = {
             "qid": question.id,
             "query": question.body,
             "query_type": question.type,
         }
-
-        if partial_answer.exact_answer is not None:
-            if partial_answer.exact_answer == NOT_AVAILABLE:
-                data["exact_answer"] = None
-            elif isinstance(partial_answer.exact_answer, str):
-                data["exact_answer"] = partial_answer.exact_answer
-            elif isinstance(partial_answer.exact_answer, Sequence):
-                if len(partial_answer.exact_answer) == 0:
-                    data["exact_answer"] = None
-                if isinstance(partial_answer.exact_answer[0], str):
-                    data["exact_answer"] = partial_answer.exact_answer[0]
-                elif isinstance(partial_answer.exact_answer[0], Sequence):
-                    data["exact_answer"] = ", ".join(
-                        item[0]
-                        for item in partial_answer.exact_answer
-                    )
-                else:
-                    raise ValueError(
-                        f"Unknown exact answer type: {partial_answer.exact_answer}")
-            else:
-                raise ValueError(
-                    f"Unknown exact answer type: {partial_answer.exact_answer}")
-
-        if partial_answer.ideal_answer is not None:
-            data["ideal_answer"] = partial_answer.ideal_answer[0]
+        
+        if partially_answered_question.exact_answer_text is not None:
+            data["exact_answer"] = partially_answered_question.exact_answer_text
+        if partially_answered_question.ideal_answer is not None:
+            data["ideal_answer"] = partially_answered_question.ideal_answer
 
         return data
 
