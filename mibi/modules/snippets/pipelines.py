@@ -9,7 +9,7 @@ from pyterrier_t5 import MonoT5ReRanker, DuoT5ReRanker
 from pyterrier_dr import TasB, TctColBert, Ance
 
 from mibi import PROJECT_DIR
-from mibi.modules.documents.pipelines import DocumentsPipeline
+from mibi.modules.documents.pipelines import DocumentsPipeline, expand_query
 from mibi.modules.snippets.pyterrier import SNIPPETS_COLS, PubMedSentencePassager
 from mibi.utils.pyterrier import ConditionalTransformer, CachableTransformer, CutoffRerank, ExportSnippetsTransformer
 
@@ -52,7 +52,7 @@ class SnippetsPipeline(Transformer):
         passager = PubMedSentencePassager(max_sentences=3)
         pipeline = ConditionalTransformer(
             condition=_has_snippet_columns,
-            transformer_true=Transformer.identity(),
+            transformer_true=expand_query,
             transformer_false=documents_pipeline >> passager,
         )
 
