@@ -129,7 +129,7 @@ _ShortListExactAnswerItem: TypeAlias = Annotated[
 
 _ShortListExactAnswer: TypeAlias = Annotated[
     Sequence[_ShortListExactAnswerItem],
-    Len(min_length=1),
+    Len(min_length=2),
 ]
 
 
