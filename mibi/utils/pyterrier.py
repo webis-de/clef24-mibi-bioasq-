@@ -1,10 +1,11 @@
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
-from pandas import DataFrame
+from pandas import DataFrame, concat
 from pyterrier.transformer import Transformer
+from pyterrier.model import add_ranks
 
 from mibi.model import Document, PartialAnswer, PartiallyAnsweredQuestion, Question, Snippet
 from mibi.modules import ABCModule
@@ -22,14 +23,15 @@ class PyTerrierModule(Generic[_T], ABCModule):
         question: Question,
         partial_answer: PartialAnswer,
     ) -> dict[str, Any]:
-        partially_answered_question = PartiallyAnsweredQuestion.from_question(question, partial_answer)
+        partially_answered_question = PartiallyAnsweredQuestion.from_question(
+            question, partial_answer)
 
         data: dict[str, Any] = {
             "qid": question.id,
             "query": question.body,
             "query_type": question.type,
         }
-        
+
         if partially_answered_question.exact_answer_text is not None:
             data["exact_answer"] = partially_answered_question.exact_answer_text
         if partially_answered_question.ideal_answer is not None:
@@ -47,7 +49,8 @@ class PyTerrierModule(Generic[_T], ABCModule):
         document_id = document_url_path.split("/")[-1]
         return {
             "docno": document_id,
-            "url": str(document)
+            "url": str(document),
+            "score": 0,
         }
 
     @staticmethod
@@ -55,9 +58,11 @@ class PyTerrierModule(Generic[_T], ABCModule):
         snippet: Snippet,
     ) -> dict[str, Any]:
         document_data = PyTerrierModule._document_data(snippet.document)
+        docno = document_data.pop("docno")
         return {
             **document_data,
-            "snippet_text": snippet.text,
+            "docno": f"{docno}%p({snippet.begin_section},{snippet.offset_in_begin_section},{snippet.end_section},{snippet.offset_in_end_section})",
+            "text": snippet.text,
             "snippet_begin_section": snippet.begin_section,
             "snippet_offset_in_begin_section": snippet.offset_in_begin_section,
             "snippet_end_section": snippet.end_section,
@@ -99,15 +104,17 @@ class PyTerrierModule(Generic[_T], ABCModule):
 
         res: DataFrame
         if res_snippets is not None and res_documents is not None:
-            res = res_snippets.merge(
+            res = concat([
+                res_snippets,
                 res_documents,
-                on=["qid", "query", "query_type", "docno", "url"],
-                how="outer",
-            )
+            ])
+            res = add_ranks(res)
         elif res_snippets is not None:
             res = res_snippets
+            res = add_ranks(res)
         elif res_documents is not None:
             res = res_documents
+            res = add_ranks(res)
         else:
             res = DataFrame([question_data])
         res = self.transformer.transform(res)
@@ -204,13 +211,75 @@ class CutoffRerank(Transformer):
 
 
 @dataclass(frozen=True)
-class ConditionalTransformer(Transformer):
-    condition: Callable[[DataFrame], bool]
-    transformer_true: Transformer
-    transformer_false: Transformer
+class MaybeDePassager(Transformer):
+    """
+    De-passages only rows that are passages and keeps the others as is.
+    """
+
+    de_passager: Transformer
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
-        if self.condition(topics_or_res):
-            return self.transformer_true.transform(topics_or_res)
-        else:
-            return self.transformer_false.transform(topics_or_res)
+        if "docno" not in topics_or_res.columns:
+            return topics_or_res
+
+        if topics_or_res["docno"].isna().any():
+            raise RuntimeError("Empty docno found.")
+
+        topics_or_res = topics_or_res.copy()
+
+        is_passage = topics_or_res["docno"].str.contains("%p")
+        topics_or_res.loc[~is_passage, "docno"] += "%p0"
+
+        topics_or_res = self.de_passager.transform(topics_or_res)
+        return topics_or_res
+
+
+@dataclass(frozen=True)
+class MaybePassager(Transformer):
+    """
+    Passages only rows that are not yet passages and keeps the others as is.
+    """
+
+    passager: Transformer
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        if "docno" not in topics_or_res.columns:
+            return topics_or_res
+
+        if topics_or_res["docno"].isna().any():
+            raise RuntimeError("Empty docno found.")
+
+        is_passage = topics_or_res["docno"].str.contains("%p")
+        topics_or_res = concat([
+            topics_or_res[is_passage],
+            self.passager.transform(topics_or_res[~is_passage]),
+        ])
+
+        if "score" in topics_or_res.columns:
+            topics_or_res.sort_values(
+                by=["qid", "score"],
+                ascending=[True, False],
+                inplace=True,
+            )
+            topics_or_res = add_ranks(topics_or_res)
+
+        return topics_or_res
+
+
+@dataclass(frozen=True)
+class WithDocumentIds(Transformer):
+    """
+    Temporarily use document ID instead of passage ID.
+    """
+
+    transformer: Transformer
+
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        topics_or_res = topics_or_res.copy()
+        topics_or_res["olddocno"] = topics_or_res["docno"]
+        topics_or_res[["docno", "pid"]] = \
+            topics_or_res["olddocno"].str.split("%p", expand=True)
+        topics_or_res = self.transformer.transform(topics_or_res)
+        topics_or_res["docno"] = topics_or_res["olddocno"]
+        topics_or_res.drop(columns=["olddocno", "pid"], inplace=True)
+        return topics_or_res
