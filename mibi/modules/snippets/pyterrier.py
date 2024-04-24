@@ -37,7 +37,7 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
             return [
                 Snippet(
                     document=Url(
-                        f"https://pubmed.ncbi.nlm.nih.gov/{row['docno'].split('%', maxsplit=1)[0]}"),
+                        f"https://pubmed.ncbi.nlm.nih.gov/{row['docno'].split('%p', maxsplit=1)[0]}"),
                     text=row["text"],
                     begin_section=row["snippet_begin_section"],
                     offset_in_begin_section=row["snippet_offset_in_begin_section"],
@@ -64,15 +64,6 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
         else:
             raise ValueError(
                 f"Cannot parse snippets from results with columns: {res.columns}")
-
-
-SNIPPETS_COLS = {
-    "text",
-    "snippet_begin_section",
-    "snippet_offset_in_begin_section",
-    "snippet_end_section",
-    "snippet_offset_in_end_section",
-}
 
 
 class _Sentence(NamedTuple):
@@ -162,7 +153,7 @@ class PubMedSentencePassager(Transformer):
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         topics_or_res = DataFrame([
             {
-                "docno": f"{row['docno']}%{i}",
+                "docno": f"{row['docno']}%p({snippet.begin_section},{snippet.offset_in_begin_section},{snippet.end_section},{snippet.offset_in_end_section})",
                 **row[list(set(row.index) - {"docno", "text", "title", "abstract"})],
                 "text": snippet.text,
                 "snippet_begin_section": snippet.begin_section,
@@ -171,8 +162,15 @@ class PubMedSentencePassager(Transformer):
                 "snippet_offset_in_end_section": snippet.offset_in_end_section,
             }
             for _, row in topics_or_res.iterrows()
-            for i, snippet in enumerate(self._iter_snippets(row))
+            for snippet in self._iter_snippets(row)
         ])
 
-        topics_or_res = add_ranks(topics_or_res)
+        if "score" in topics_or_res.columns:
+            topics_or_res.sort_values(
+                by=["qid", "score"],
+                ascending=[True, False],
+                inplace=True,
+            )
+            topics_or_res = add_ranks(topics_or_res)
+
         return topics_or_res
