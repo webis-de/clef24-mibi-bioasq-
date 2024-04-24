@@ -129,7 +129,7 @@ def _expand_query(row: Series) -> str:
     return query
 
 
-expand_query = query(_expand_query, verbose=True)
+expand_query = query(_expand_query)
 
 
 @dataclass(frozen=True)
