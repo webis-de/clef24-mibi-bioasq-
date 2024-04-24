@@ -11,11 +11,10 @@ from pyterrier_dr import TasB, TctColBert, Ance
 from mibi import PROJECT_DIR
 from mibi.modules.documents.pipelines import build_query, build_result, expand_query
 from mibi.modules.documents.pubmed import Article
-from mibi.modules.snippets.pyterrier import PubMedSentencePassager
+from mibi.modules.snippets.pyterrier import FixOffsetDtype, PubMedSentencePassager
 from mibi.utils.elasticsearch import elasticsearch_connection
 from mibi.utils.elasticsearch_pyterrier import ElasticsearchGet, ElasticsearchRerank
 from mibi.utils.pyterrier import CachableTransformer, CutoffRerank, ExportSnippetsTransformer, MaybePassager, WithDocumentIds
-
 
 
 @dataclass(frozen=True)
@@ -63,6 +62,9 @@ class SnippetsPipeline(Transformer):
         passager = MaybePassager(passager)
         pipeline = pipeline >> passager
 
+        fix_dtype = FixOffsetDtype()
+        pipeline = pipeline >> fix_dtype
+
         # Re-rank snippets based on Elasticsearch document score.
         elasticsearch = ElasticsearchRerank(
             document_type=Article,
@@ -97,7 +99,8 @@ class SnippetsPipeline(Transformer):
         elif ("tas-b" in self.pointwise_model or
               "tas_b" in self.pointwise_model):
             with catch_warnings():
-                filterwarnings(action="ignore", message="TypedStorage is deprecated", category=UserWarning)
+                filterwarnings(
+                    action="ignore", message="TypedStorage is deprecated", category=UserWarning)
                 pointwise_reranker = TasB(
                     model_name=self.pointwise_model, verbose=True)
         elif ("tct-colbert" in self.pointwise_model or
@@ -121,7 +124,8 @@ class SnippetsPipeline(Transformer):
         pairwise_reranker: Transformer | None
         if "duot5" in self.pairwise_model:
             with catch_warnings():
-                filterwarnings(action="ignore", message="TypedStorage is deprecated", category=UserWarning)
+                filterwarnings(
+                    action="ignore", message="TypedStorage is deprecated", category=UserWarning)
                 pairwise_reranker = DuoT5ReRanker(
                     model=self.pairwise_model, verbose=True)
         else:

@@ -42,9 +42,11 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
                         f"http://www.ncbi.nlm.nih.gov/pubmed/{row['docno'].split('%p', maxsplit=1)[0]}"),
                     text=row["text"],
                     begin_section=row["snippet_begin_section"],
-                    offset_in_begin_section=row["snippet_offset_in_begin_section"],
+                    offset_in_begin_section=int(
+                        f"{row['snippet_offset_in_begin_section']:d}"),
                     end_section=row["snippet_end_section"],
-                    offset_in_end_section=row["snippet_offset_in_end_section"],
+                    offset_in_end_section=int(
+                        f"{row['snippet_offset_in_end_section']:d}"),
                 )
                 for _, row in res.iterrows()
             ]
@@ -155,7 +157,7 @@ class PubMedSentencePassager(Transformer):
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         topics_or_res = DataFrame([
             {
-                "docno": f"{row['docno']}%p({snippet.begin_section},{snippet.offset_in_begin_section},{snippet.end_section},{snippet.offset_in_end_section})",
+                "docno": f"{row['docno']}%p({snippet.begin_section},{snippet.offset_in_begin_section:d},{snippet.end_section},{snippet.offset_in_end_section:d})",
                 **row[list(set(row.index) - {"docno", "text", "title", "abstract"})],
                 "text": snippet.text,
                 "snippet_begin_section": snippet.begin_section,
@@ -175,4 +177,15 @@ class PubMedSentencePassager(Transformer):
             )
             topics_or_res = add_ranks(topics_or_res)
 
+        return topics_or_res
+
+
+@dataclass(frozen=True)
+class FixOffsetDtype(Transformer):
+    def transform(self, topics_or_res: DataFrame) -> DataFrame:
+        for col in (
+            "snippet_offset_in_begin_section",
+            "snippet_offset_in_end_section",
+        ):
+            topics_or_res[col] = topics_or_res[col].astype(int)
         return topics_or_res

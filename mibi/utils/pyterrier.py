@@ -61,7 +61,7 @@ class PyTerrierModule(Generic[_T], ABCModule):
         docno = document_data.pop("docno")
         return {
             **document_data,
-            "docno": f"{docno}%p({snippet.begin_section},{snippet.offset_in_begin_section},{snippet.end_section},{snippet.offset_in_end_section})",
+            "docno": f"{docno}%p({snippet.begin_section},{snippet.offset_in_begin_section:d},{snippet.end_section},{snippet.offset_in_end_section:d})",
             "text": snippet.text,
             "snippet_begin_section": snippet.begin_section,
             "snippet_offset_in_begin_section": snippet.offset_in_begin_section,
