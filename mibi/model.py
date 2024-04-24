@@ -3,7 +3,7 @@ from re import compile as re_compile
 from typing import Annotated, Final, Literal, TypeAlias, Sequence, TypeVar
 
 from annotated_types import Len, Ge
-from pydantic import AfterValidator, AliasChoices, ConfigDict, Field, PlainSerializer, PlainValidator, SerializationInfo, TypeAdapter, UrlConstraints, ValidationInfo, BaseModel, WithJsonSchema
+from pydantic import AfterValidator, AliasChoices, ConfigDict, Field, PlainSerializer, PlainValidator, SerializationInfo, TypeAdapter, UrlConstraints, BaseModel, WithJsonSchema
 from pydantic_core import Url
 
 
@@ -28,8 +28,10 @@ class Question(BaseModel):
     body: str
 
 
+# _PUBMED_URL_PATTERN = re_compile(
+#     r"https?:\/\/(?:pubmed\.ncbi\.nlm\.nih\.gov|(?:www\.)?ncbi\.nlm\.nih\.gov\/pubmed)\/[1-9][0-9]*\/?")
 _PUBMED_URL_PATTERN = re_compile(
-    r"https?:\/\/(?:pubmed.ncbi.nlm.nih.gov|(?:www.)ncbi.nlm.nih.gov\/pubmed)/[1-9][0-9]*\/?")
+    r"http:\/\/www\.ncbi\.nlm\.nih\.gov\/pubmed\/[1-9][0-9]*")
 
 
 def _validate_pubmed_url(url: Url) -> Url:
