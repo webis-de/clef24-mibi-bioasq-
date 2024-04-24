@@ -29,7 +29,7 @@ class AnswerBuilder:
         self._ideal_answer_module = ideal_answer_module
 
     def make_documents(self) -> None:
-        print("Making documents...")
+        print(f"Making documents for question '{self.question.body}'...")
         self._partial_answer = PartialAnswer(
             documents=self._documents_module.forward(
                 question=self._question,
@@ -42,7 +42,7 @@ class AnswerBuilder:
         print("Made documents.")
 
     def make_snippets(self) -> None:
-        print("Making snippets...")
+        print(f"Making snippets for question '{self.question.body}'...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._snippets_module.forward(
@@ -55,7 +55,7 @@ class AnswerBuilder:
         print("Made snippets.")
 
     def make_exact_answer(self) -> None:
-        print("Making exact answer...")
+        print(f"Making exact answer for question '{self.question.body}'...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
@@ -68,7 +68,7 @@ class AnswerBuilder:
         print("Made exact answer.")
 
     def make_ideal_answer(self) -> None:
-        print("Making ideal answer...")
+        print(f"Making ideal answer for question '{self.question.body}'...")
         self._partial_answer = PartialAnswer(
             documents=self._partial_answer.documents,
             snippets=self._partial_answer.snippets,
