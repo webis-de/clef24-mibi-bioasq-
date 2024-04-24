@@ -202,18 +202,22 @@ class CutoffRerank(Transformer):
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         topics_or_res = self.candidates.transform(topics_or_res)
+
         pipeline = Transformer.from_df(
             input=topics_or_res,
             uniform=True,
         )
         pipeline = ((pipeline % self.cutoff) >> self.reranker) ^ pipeline
-        return pipeline.transform(topics_or_res)
+        topics_or_res = pipeline.transform(topics_or_res)
+
+        return topics_or_res
 
 
 @dataclass(frozen=True)
 class MaybeDePassager(Transformer):
     """
     De-passages only rows that are passages and keeps the others as is.
+    Existing documents are preferred in case of duplicates.
     """
 
     de_passager: Transformer
@@ -228,9 +232,23 @@ class MaybeDePassager(Transformer):
         topics_or_res = topics_or_res.copy()
 
         is_passage = topics_or_res["docno"].str.contains("%p")
-        topics_or_res.loc[~is_passage, "docno"] += "%p0"
+        topics_or_res = concat([
+            topics_or_res[~is_passage],
+            self.de_passager.transform(
+                topics_or_res[is_passage].reset_index()),
+        ])
 
-        topics_or_res = self.de_passager.transform(topics_or_res)
+        topics_or_res = topics_or_res.groupby("docno").first().reset_index()
+
+        if "score" in topics_or_res.columns:
+            topics_or_res.sort_values(
+                by=["qid", "score"],
+                ascending=[True, False],
+                inplace=True,
+            )
+            topics_or_res = add_ranks(topics_or_res)
+
+        topics_or_res.reset_index(drop=True, inplace=True)
         return topics_or_res
 
 
@@ -238,6 +256,7 @@ class MaybeDePassager(Transformer):
 class MaybePassager(Transformer):
     """
     Passages only rows that are not yet passages and keeps the others as is.
+    Existing passages are preferred in case of duplicates.
     """
 
     passager: Transformer
@@ -249,11 +268,16 @@ class MaybePassager(Transformer):
         if topics_or_res["docno"].isna().any():
             raise RuntimeError("Empty docno found.")
 
+        topics_or_res = topics_or_res.copy()
+
         is_passage = topics_or_res["docno"].str.contains("%p")
         topics_or_res = concat([
             topics_or_res[is_passage],
-            self.passager.transform(topics_or_res[~is_passage]),
+            self.passager.transform(
+                topics_or_res[~is_passage].reset_index()),
         ])
+
+        topics_or_res = topics_or_res.groupby("docno").first().reset_index()
 
         if "score" in topics_or_res.columns:
             topics_or_res.sort_values(
@@ -263,6 +287,7 @@ class MaybePassager(Transformer):
             )
             topics_or_res = add_ranks(topics_or_res)
 
+        topics_or_res.reset_index(drop=True, inplace=True)
         return topics_or_res
 
 
@@ -276,10 +301,15 @@ class WithDocumentIds(Transformer):
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
         topics_or_res = topics_or_res.copy()
+
         topics_or_res["olddocno"] = topics_or_res["docno"]
         topics_or_res[["docno", "pid"]] = \
             topics_or_res["olddocno"].str.split("%p", expand=True)
+
         topics_or_res = self.transformer.transform(topics_or_res)
+
         topics_or_res["docno"] = topics_or_res["olddocno"]
         topics_or_res.drop(columns=["olddocno", "pid"], inplace=True)
+
+        topics_or_res.reset_index(drop=True, inplace=True)
         return topics_or_res
