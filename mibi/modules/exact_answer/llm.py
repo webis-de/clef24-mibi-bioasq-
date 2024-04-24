@@ -1,5 +1,5 @@
 from typing import Annotated, Sequence, TypeAlias, cast
-from warnings import catch_warnings, simplefilter
+from warnings import catch_warnings, simplefilter, warn
 
 from annotated_types import Len
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
@@ -191,7 +191,13 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             question=question.body,
             context=self._context(question, partial_answer)
         )
-        prediction: Prediction = self._yes_no_predict.forward(input=input)
+        try:
+            prediction: Prediction = self._yes_no_predict.forward(input=input)
+        except ValueError as e:
+            warn(RuntimeWarning(
+                f"Could not find yes-no answer to question: {question.body}", e))
+            warn("Falling back to negative answer.")
+            return "no"
         output = cast(YesNoOutput, prediction.output)
         return output.answer
 
@@ -204,7 +210,13 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             question=question.body,
             context=self._context(question, partial_answer)
         )
-        prediction: Prediction = self._factoid_predict.forward(input=input)
+        try:
+            prediction: Prediction = self._factoid_predict.forward(input=input)
+        except ValueError as e:
+            warn(RuntimeWarning(
+                f"Could not find factoid answer to question: {question.body}", e))
+            warn("Falling back to empty answer.")
+            return ""
         output = cast(FactoidOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions (e.g., not too long)?
         return output.answer
@@ -218,7 +230,13 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             question=question.body,
             context=self._context(question, partial_answer)
         )
-        prediction: Prediction = self._list_predict.forward(input=input)
+        try:
+            prediction: Prediction = self._list_predict.forward(input=input)
+        except ValueError as e:
+            warn(RuntimeWarning(
+                f"Could not find list answer to question: {question.body}", e))
+            warn("Falling back to empty answer.")
+            return []
         output = cast(ListOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions (e.g., not too long)?
         return output.answer

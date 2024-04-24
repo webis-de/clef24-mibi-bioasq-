@@ -1,4 +1,5 @@
 from typing import TypeAlias, cast
+from warnings import warn
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
 from pydantic import BaseModel, Field
 
@@ -61,7 +62,13 @@ class LlmIdealAnswerModule(IdealAnswerModule):
             question=question.body,
             context=self._context(question, partial_answer)
         )
-        prediction: Prediction = self._ideal_predict.forward(input=input)
+        try:
+            prediction: Prediction = self._ideal_predict.forward(input=input)
+        except ValueError as e:
+            warn(RuntimeWarning(
+                f"Could not find ideal answer to question: {question.body}", e))
+            warn("Falling back to empty answer.")
+            return ""
         output = cast(IdealOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions?
         return output.answer
