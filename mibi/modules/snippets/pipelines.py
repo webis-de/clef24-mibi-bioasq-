@@ -9,13 +9,13 @@ from pyterrier_t5 import MonoT5ReRanker, DuoT5ReRanker
 from pyterrier_dr import TasB, TctColBert, Ance
 
 from mibi import PROJECT_DIR
-from mibi.modules.documents.pipelines import DocumentsPipeline, expand_query
-from mibi.modules.snippets.pyterrier import SNIPPETS_COLS, PubMedSentencePassager
-from mibi.utils.pyterrier import ConditionalTransformer, CachableTransformer, CutoffRerank, ExportSnippetsTransformer
+from mibi.modules.documents.pipelines import build_query, build_result, expand_query
+from mibi.modules.documents.pubmed import Article
+from mibi.modules.snippets.pyterrier import PubMedSentencePassager
+from mibi.utils.elasticsearch import elasticsearch_connection
+from mibi.utils.elasticsearch_pyterrier import ElasticsearchGet, ElasticsearchRerank
+from mibi.utils.pyterrier import CachableTransformer, CutoffRerank, ExportSnippetsTransformer, MaybePassager, WithDocumentIds
 
-
-def _has_snippet_columns(topics_or_res: DataFrame) -> bool:
-    return SNIPPETS_COLS.issubset(topics_or_res.columns)
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,6 @@ class SnippetsPipeline(Transformer):
     elasticsearch_username: str | None
     elasticsearch_password: str | None
     elasticsearch_index: str | None
-    bm25_rerank: bool = True
     # pointwise_model: str = "castorini/monot5-base-msmarco"  # monoT5
     # pointwise_model: str = "castorini/monot5-base-med-msmarco"  # monoT5
     # pointwise_model: str = "castorini/monot5-3b-msmarco"  # monoT5
@@ -42,30 +41,53 @@ class SnippetsPipeline(Transformer):
 
     @cached_property
     def _pipeline(self) -> Transformer:
-        # If no snippets are given, run the documents pipeline and split passages.
-        documents_pipeline = DocumentsPipeline(
-            elasticsearch_url=self.elasticsearch_url,
-            elasticsearch_username=self.elasticsearch_username,
-            elasticsearch_password=self.elasticsearch_password,
-            elasticsearch_index=self.elasticsearch_index,
-        )
-        passager = PubMedSentencePassager(max_sentences=3)
-        pipeline = ConditionalTransformer(
-            condition=_has_snippet_columns,
-            transformer_true=expand_query,
-            transformer_false=documents_pipeline >> passager,
-        )
+        pipeline = Transformer.identity()
 
-        if self.bm25_rerank:
-            # Re-rank texts with BM25 (based on candidate set text statistics!)
-            bm25_scorer = CachableTransformer(
-                wrapped=TextScorer(
-                    body_attr="text",
-                    wmodel="BM25",
-                ),
-                key="TextScorer(body_attr='text',wmodel='BM25')"
-            )
-            pipeline = (pipeline >> tokenise() >> bm25_scorer >> reset_query())
+        # Expand the query with previous answers.
+        pipeline = pipeline >> expand_query
+
+        # Documents need to be passaged, but oterwise skip passaging.
+        passager = PubMedSentencePassager(max_sentences=3)
+        elasticsearch_get = ElasticsearchGet(
+            document_type=Article,
+            client=elasticsearch_connection(
+                elasticsearch_url=self.elasticsearch_url,
+                elasticsearch_username=self.elasticsearch_username,
+                elasticsearch_password=self.elasticsearch_password,
+            ),
+            result_builder=build_result,
+            index=self.elasticsearch_index,
+            verbose=True,
+        )
+        passager = elasticsearch_get >> passager
+        passager = MaybePassager(passager)
+        pipeline = pipeline >> passager
+
+        # Re-rank snippets based on Elasticsearch document score.
+        elasticsearch = ElasticsearchRerank(
+            document_type=Article,
+            client=elasticsearch_connection(
+                elasticsearch_url=self.elasticsearch_url,
+                elasticsearch_username=self.elasticsearch_username,
+                elasticsearch_password=self.elasticsearch_password,
+            ),
+            query_builder=build_query,
+            index=self.elasticsearch_index,
+            verbose=True,
+        )
+        elasticsearch = WithDocumentIds(elasticsearch)
+        pipeline = pipeline >> elasticsearch
+
+        # Re-rank texts with BM25 (based on candidate set text statistics!)
+        # bm25_scorer = CachableTransformer(
+        #     wrapped=TextScorer(
+        #         body_attr="text",
+        #         wmodel="BM25",
+        #     ),
+        #     key="TextScorer(body_attr='text',wmodel='BM25')"
+        # )
+        # bm25_scorer = tokenise() >> bm25_scorer >> reset_query()
+        # pipeline = pipeline >> bm25_scorer
 
         # Re-rank the top-100 snippets pointwise.
         pointwise_reranker: Transformer | None
