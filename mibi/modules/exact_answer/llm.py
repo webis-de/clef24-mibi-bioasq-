@@ -7,7 +7,7 @@ from pydantic import AfterValidator, BaseModel, Field
 from spacy import load as spacy_load
 from spacy.language import Language
 
-from mibi.model import ListExactAnswerItem, Question, PartialAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
+from mibi.model import ListExactAnswerItem, PartiallyAnsweredQuestion, Question, PartialAnswer, YesNoExactAnswer, FactoidExactAnswer, ListExactAnswer
 from mibi.modules.helpers import AutoExactAnswerModule
 
 
@@ -160,14 +160,27 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
     _factoid_predict = TypedPredictor(signature=FactoidPredict, max_retries=5)
     _list_predict = TypedPredictor(signature=ListPredict, max_retries=10)
 
-    def _context(self, partial_answer: PartialAnswer) -> Context:
-        if partial_answer.snippets is not None:
-            return [
+    def _context(
+            self,
+            question: Question,
+            partial_answer: PartialAnswer,
+    ) -> Context:
+        partially_answered_question = PartiallyAnsweredQuestion.from_question(
+            question, partial_answer)
+
+        context = []
+
+        if partially_answered_question.exact_answer_text is not None:
+            context += [partially_answered_question.exact_answer_text]
+        if partially_answered_question.ideal_answer is not None:
+            context += [partially_answered_question.ideal_answer]
+        if partially_answered_question.snippets is not None:
+            context += [
                 snippet.text
-                for snippet in partial_answer.snippets
+                for snippet in partially_answered_question.snippets
             ]
         # TODO: Extract context from document.
-        raise NotImplementedError()
+        return context
 
     def forward_yes_no(
             self,
@@ -176,7 +189,7 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
     ) -> YesNoExactAnswer:
         input = YesNoInput(
             question=question.body,
-            context=self._context(partial_answer)
+            context=self._context(question, partial_answer)
         )
         prediction: Prediction = self._yes_no_predict.forward(input=input)
         output = cast(YesNoOutput, prediction.output)
@@ -189,7 +202,7 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
     ) -> FactoidExactAnswer:
         input = FactoidInput(
             question=question.body,
-            context=self._context(partial_answer)
+            context=self._context(question, partial_answer)
         )
         prediction: Prediction = self._factoid_predict.forward(input=input)
         output = cast(FactoidOutput, prediction.output)
@@ -203,7 +216,7 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
     ) -> ListExactAnswer:
         input = ListInput(
             question=question.body,
-            context=self._context(partial_answer)
+            context=self._context(question, partial_answer)
         )
         prediction: Prediction = self._list_predict.forward(input=input)
         output = cast(ListOutput, prediction.output)

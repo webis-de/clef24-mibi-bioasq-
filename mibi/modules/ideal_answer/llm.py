@@ -1,8 +1,8 @@
 from typing import TypeAlias, cast
-from dspy import Module, Signature, Prediction, InputField, OutputField, TypedPredictor
+from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
 from pydantic import BaseModel, Field
 
-from mibi.model import Question, PartialAnswer, IdealAnswer
+from mibi.model import PartiallyAnsweredQuestion, Question, PartialAnswer, IdealAnswer
 from mibi.modules import IdealAnswerModule
 
 
@@ -30,14 +30,27 @@ class IdealPredict(Signature):
 class LlmIdealAnswerModule(IdealAnswerModule):
     _ideal_predict = TypedPredictor(signature=IdealPredict)
 
-    def _context(self, partial_answer: PartialAnswer) -> Context:
-        if partial_answer.snippets is not None:
-            return [
+    def _context(
+        self,
+        question: Question,
+        partial_answer: PartialAnswer,
+    ) -> Context:
+        partially_answered_question = PartiallyAnsweredQuestion.from_question(
+            question, partial_answer)
+
+        context = []
+
+        if partially_answered_question.exact_answer_text is not None:
+            context += [partially_answered_question.exact_answer_text]
+        if partially_answered_question.ideal_answer is not None:
+            context += [partially_answered_question.ideal_answer]
+        if partially_answered_question.snippets is not None:
+            context += [
                 snippet.text
-                for snippet in partial_answer.snippets
+                for snippet in partially_answered_question.snippets
             ]
         # TODO: Extract context from document.
-        raise NotImplementedError()
+        return context
 
     def forward(
         self,
@@ -46,7 +59,7 @@ class LlmIdealAnswerModule(IdealAnswerModule):
     ) -> IdealAnswer:
         input = IdealInput(
             question=question.body,
-            context=self._context(partial_answer)
+            context=self._context(question, partial_answer)
         )
         prediction: Prediction = self._ideal_predict.forward(input=input)
         output = cast(IdealOutput, prediction.output)
