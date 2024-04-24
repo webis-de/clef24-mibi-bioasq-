@@ -167,12 +167,10 @@ class DocumentsPipeline(Transformer):
         )
         pipeline = pipeline >> elasticsearch
 
+        # TODO: Axiomatically re-rank snippets.
+
         # Cut off at 10 documents as per BioASQ requirements.
         pipeline = pipeline % 10  # type: ignore
-
-        # FIXME: Export documents temporarily, to manually import them to the answer generation stage.
-        pipeline = pipeline >> ExportDocumentsTransformer(
-            path=PROJECT_DIR / "data" / "documents")
 
         return pipeline
 

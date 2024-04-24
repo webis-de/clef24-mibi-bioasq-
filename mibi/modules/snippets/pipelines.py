@@ -142,10 +142,6 @@ class SnippetsPipeline(Transformer):
         # Cut off at 10 snippets as per BioASQ requirements.
         pipeline = pipeline % 10  # type: ignore
 
-        # FIXME: Export documents temporarily, to manually import them to the answer generation stage.
-        pipeline = pipeline >> ExportSnippetsTransformer(
-            path=PROJECT_DIR / "data" / "snippets")
-
         return pipeline
 
     def transform(self, topics_or_res: DataFrame) -> DataFrame:
