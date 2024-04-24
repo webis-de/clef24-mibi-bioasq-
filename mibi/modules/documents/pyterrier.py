@@ -12,7 +12,8 @@ class PyTerrierDocumentsModule(PyTerrierModule[Documents], DocumentsModule):
                 raise ValueError(
                     "Cannot parse documents due to missing `docno` values.")
             return [
-                Url(f"https://pubmed.ncbi.nlm.nih.gov/{document_id}")
+                # Url(f"https://pubmed.ncbi.nlm.nih.gov/{document_id}")
+                Url(f"http://www.ncbi.nlm.nih.gov/pubmed/{document_id}")
                 for document_id in res["docno"]
             ]
         elif "url" in res.columns:

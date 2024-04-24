@@ -36,8 +36,10 @@ class PyTerrierSnippetsModule(PyTerrierModule[Snippets], SnippetsModule):
                     "Cannot parse snippets due to missing `docno` values.")
             return [
                 Snippet(
+                    # document=Url(
+                    #     f"https://pubmed.ncbi.nlm.nih.gov/{row['docno'].split('%p', maxsplit=1)[0]}"),
                     document=Url(
-                        f"https://pubmed.ncbi.nlm.nih.gov/{row['docno'].split('%p', maxsplit=1)[0]}"),
+                        f"http://www.ncbi.nlm.nih.gov/pubmed/{row['docno'].split('%p', maxsplit=1)[0]}"),
                     text=row["text"],
                     begin_section=row["snippet_begin_section"],
                     offset_in_begin_section=row["snippet_offset_in_begin_section"],

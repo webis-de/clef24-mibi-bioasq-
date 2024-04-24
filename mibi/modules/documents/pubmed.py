@@ -233,7 +233,8 @@ class Article(Document):
 
     @property
     def pubmed_url(self) -> str:
-        return f"https://pubmed.ncbi.nlm.nih.gov/{self.pubmed_id}"
+        # return f"https://pubmed.ncbi.nlm.nih.gov/{self.pubmed_id}"
+        return f"http://www.ncbi.nlm.nih.gov/pubmed/{self.pubmed_id}"
 
     @property
     def pmc_url(self) -> str | None:
