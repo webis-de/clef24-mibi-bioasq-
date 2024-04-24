@@ -61,7 +61,6 @@ def _cut_off_at_10(value: Sequence[_T1]) -> Annotated[Sequence[_T1], Len(max_len
 
 Documents: TypeAlias = Annotated[
     Sequence[Document],
-    Len(min_length=1),
     # PlainValidator(_cut_off_at_10),
     PlainSerializer(_cut_off_at_10),
 ]
@@ -131,7 +130,6 @@ class Snippet(BaseModel):
 
 Snippets: TypeAlias = Annotated[
     Sequence[Snippet],
-    Len(min_length=1),
     # PlainValidator(_cut_off_at_10),
     PlainSerializer(_cut_off_at_10),
 ]
@@ -160,13 +158,15 @@ IdealAnswer: TypeAlias = Annotated[
     PlainValidator(_first_str_of_json_sequence),
     PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1)]
+        ).json_schema(),  # type: ignore
         mode="validation",
     ),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1, max_length=1)]
+        ).json_schema(),  # type: ignore
         mode="serialization",
     ),
 ]
@@ -179,13 +179,15 @@ FactoidExactAnswer: TypeAlias = Annotated[
     PlainValidator(_first_str_of_json_sequence),
     PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1)]
+        ).json_schema(),  # type: ignore
         mode="validation",
     ),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1, max_length=1)]
+        ).json_schema(),  # type: ignore
         mode="serialization",
     ),
 ]
@@ -196,22 +198,21 @@ ListExactAnswerItem: TypeAlias = Annotated[
     PlainValidator(_first_str_of_json_sequence),
     PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1)]
+        ).json_schema(),  # type: ignore
         mode="validation",
     ),
     WithJsonSchema(
-        TypeAdapter(Annotated[Sequence[str], Len(
-            min_length=1, max_length=1)]).json_schema(),  # type: ignore
+        TypeAdapter(
+            Annotated[Sequence[str], Len(min_length=1, max_length=1)]
+        ).json_schema(),  # type: ignore
         mode="serialization",
     ),
 ]
 
 
-ListExactAnswer: TypeAlias = Annotated[
-    Sequence[ListExactAnswerItem],
-    Len(min_length=1),
-]
+ListExactAnswer: TypeAlias = Sequence[ListExactAnswerItem]
 
 
 SummaryExactAnswer: TypeAlias = Literal["n/a"]
@@ -255,14 +256,14 @@ class PartiallyAnsweredQuestion(PartialAnswer, Question):
             id=question.id,
             type=question.type,
             body=question.body,
-            documents=partial_answer.documents \
-                if partial_answer is not None else None,
-            snippets=partial_answer.snippets \
-                if partial_answer is not None else None,
-            ideal_answer=partial_answer.ideal_answer \
-                if partial_answer is not None else None,
-            exact_answer=partial_answer.exact_answer \
-                if partial_answer is not None else None,
+            documents=partial_answer.documents
+            if partial_answer is not None else None,
+            snippets=partial_answer.snippets
+            if partial_answer is not None else None,
+            ideal_answer=partial_answer.ideal_answer
+            if partial_answer is not None else None,
+            exact_answer=partial_answer.exact_answer
+            if partial_answer is not None else None,
         )
 
     @cached_property
