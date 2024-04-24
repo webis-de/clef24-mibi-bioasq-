@@ -65,3 +65,54 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Re-rank and generate answers the same as  `mibi_rag_abstract` (Batch 1).
     - `mibi_rag_snippet`:
       - Generate answers the same as  `mibi_rag_snippet` (Batch 1).
+- Batch 3:
+  - Modules:
+    - Documents:
+      - Index PubMed 2024 baseline in Elasticsearch (including metadata).
+      - If an exact answer is given, append it to the query (comma-separated).
+      - If an ideal answer is given, append it to the query.
+      - If snippets are given, de-passage them (max passage strategy).
+      - If documents (directly or from snippets) are given, re-rank documents based on Elasticsearch retrieval score (consider only articles with an abstract, disallow 27 non-peer-reviewed publication types, match the question to the article's title and abstract, and match the medical entities (SciSpaCy) from the question to MeSH terms of the PubMed article).
+      - Otherwise, retrieve 10 documents from Elasticsearch (same query strategy).
+    - Snippets:
+      - Index PubMed 2024 baseline in Elasticsearch (including metadata).
+      - If an exact answer is given, append it to the query (comma-separated).
+      - If an ideal answer is given, append it to the query.
+      - If documents are given, extract snippets from the retrieved articles (the full title and up to 3 sentences from the abstract).
+      - If snippets are given, append them to the extracted snippets, if any.
+      - Re-rank snippets based on Elasticsearch document retrieval score (same query strategy as for documents)
+      - Re-rank the top-100 with the TAS-B bi-encoder (sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco).
+      - Re-rank the top-5 with the duoT5 cross-encoder (castorini/duot5-base-msmarco).
+    - Exact answer:
+      - If snippets are given, add each snippet's text to the prompt context.
+      - If a (previous) exact answer is given, add the answer to the prompt context.
+      - If an ideal answer is given, add the answer to the prompt context.
+      - Generate an exact answer with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature per question type, no prompt optimization)
+    - Exact answer:
+      - If snippets are given, add each snippet's text to the prompt context.
+      - If an exact answer is given, add the answer to the prompt context.
+      - If a (previous) ideal answer is given, add the answer to the prompt context.
+      - Generate an ideal answer with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature, no prompt optimization)
+  - Phase A:
+    - `mibi_rag_snippet`:
+      - Use the modules defined above in this order: documents, snippets, exact answer, ideal answer (retrieve-then-generate).
+    - `mibi_rag_abstract`:
+      - Use the modules defined above in this order: exact answer, ideal answer, documents, snippets (generate-then-retrieve).
+    - `mibi_rag_3`:
+      - Use the modules defined above in this order: documents, snippets, exact answer, ideal answer, documents, snippets (retrieve-then-generate-then-retrieve).
+    - `mibi_rag_4`:
+      - Use the modules defined above in this order: exact answer, ideal answer, documents, snippets, exact answer, ideal answer (generate-then-retrieve-then-generate).
+    - `mibi_rag_5`:
+      - Use the modules defined above incrementally, as determined by DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature, no prompt optimization)
+  - Phase A+:
+    - `mibi_rag_abstract`: TODO
+    - `mibi_rag_snippet`: TODO
+    - `mibi_rag_3`: TODO
+    - `mibi_rag_4`: TODO
+    - `mibi_rag_5`: TODO
+  - Phase B:
+    - `mibi_rag_abstract`: TODO
+    - `mibi_rag_snippet`: TODO
+    - `mibi_rag_3`: TODO
+    - `mibi_rag_4`: TODO
+    - `mibi_rag_5`: TODO
