@@ -286,14 +286,14 @@ class YesNoExact(BaseModel):
 class ListExact(BaseModel):
     answer: List[List[str]] = Field(
         ...,
-        description="List of lists with single entities, each inside list contains only one entity, maximum 5 inside lists, no synonyms",
+        description="List of lists with single entities, each inner list contains only one entity, maximum 100 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
     )
 
 
 class FactoidExact(BaseModel):
     answer: List[str] = Field(
         ...,
-        description="A very short fact for example, a single entity or a short phrase",
+        description="List of lists with single entities or short phrases, each inner list contains only one short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
     )
 
 
@@ -307,8 +307,7 @@ class Summary(BaseModel):
 class IdealAnswer(BaseModel):
     answer: str = Field(
         ...,
-        description="""The ideal answer to the question in one longer sentence that also contains a short explanation.
-                                       The ideal answer is grammatically complete with subjects, objects, and predicates, is concise and precise.""",
+        description="The ideal answer to the question in one longer sentence that also contains a short explanation. The ideal answer is grammatically complete with subjects, objects, and predicates, is concise and precise.",
     )
 
 
@@ -338,7 +337,7 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
             },
             {
                 "role": "system",
-                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct",
+                "content": "Base your answer on the current and standard practices referenced in medical guidelines. Please use as much as possible the retrieved context given below if it is factually correct. You must nor start the answer with 'based on the provided context'",
             },
             {"role": "system", "content": f"Context: {text_chunks}"},
             # {"role": "system", 'content': f'Please write the answer as {answer_type}'},
@@ -362,8 +361,8 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         print("Trying another way (exact answer)")
         response_mode_dict = {
             "yesno": "yes or no",
-            "list": "List of lists with single entities, each inside list contains only one entity, maximum 5 inside lists, no synonyms",
-            "factoid": "A very short fact for example, a single entity or a short phrase",
+            "list": "List of lists with single entities, each inner list contains only one entity, maximum 100 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
+            "factoid": "List of lists with single entities or short phrases, each inner list contains a very short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
             "summary": "A summary of the retrieved context in 2 or 3 sentences. It also contains a short explanation",
         }
 
