@@ -293,7 +293,7 @@ class ListExact(BaseModel):
 class FactoidExact(BaseModel):
     answer: List[str] = Field(
         ...,
-        description="List of lists with single entities or short phrases, each inner list contains only one short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
+        description="List of lists with single entities or short phrases of 2-3 words, each inner list contains only one short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
     )
 
 
@@ -345,8 +345,8 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model="gpt-4-0613",
+            model="gpt-3.5-turbo-0613",
+            # model="gpt-4-0613",
             temperature=0,
             response_model=response_model,
             messages=messages,
@@ -362,7 +362,7 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         response_mode_dict = {
             "yesno": "yes or no",
             "list": "List of lists with single entities, each inner list contains only one entity, maximum 100 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
-            "factoid": "List of lists with single entities or short phrases, each inner list contains a very short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
+            "factoid": "List of lists with single entities or short phrases of 2-3 words, each inner list contains a very short fact, maximum 5 inner lists, no synonyms, sorted by the relevance to the question: first is the most relevant",
             "summary": "A summary of the retrieved context in 2 or 3 sentences. It also contains a short explanation",
         }
 
@@ -390,8 +390,8 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model="gpt-4-0613",
+            model="gpt-3.5-turbo-0613",
+            # model="gpt-4-0613",
             temperature=0,
             # response_model=response_model,
             messages=messages,
@@ -429,8 +429,8 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model="gpt-4-0613",
+            model="gpt-3.5-turbo-0613",
+            # model="gpt-4-0613",
             temperature=0,
             response_model=response_model,
             messages=messages,
@@ -466,8 +466,8 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            # model="gpt-3.5-turbo-0613",
-            model="gpt-4-0613",
+            model="gpt-3.5-turbo-0613",
+            # model="gpt-4-0613",
             temperature=0,
             # response_model=response_model,
             messages=messages,
