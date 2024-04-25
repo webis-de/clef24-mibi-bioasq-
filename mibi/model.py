@@ -156,18 +156,11 @@ def _wrap_str_as_json_sequence(
 IdealAnswer: TypeAlias = Annotated[
     str,
     PlainValidator(_first_str_of_json_sequence),
-    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(
             Annotated[Sequence[str], Len(min_length=1)]
         ).json_schema(),  # type: ignore
         mode="validation",
-    ),
-    WithJsonSchema(
-        TypeAdapter(
-            Annotated[Sequence[str], Len(min_length=1, max_length=1)]
-        ).json_schema(),  # type: ignore
-        mode="serialization",
     ),
 ]
 
@@ -177,13 +170,13 @@ YesNoExactAnswer: TypeAlias = Literal["yes", "no"]
 FactoidExactAnswer: TypeAlias = Annotated[
     str,
     PlainValidator(_first_str_of_json_sequence),
-    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(
             Annotated[Sequence[str], Len(min_length=1)]
         ).json_schema(),  # type: ignore
         mode="validation",
     ),
+    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(
             Annotated[Sequence[str], Len(min_length=1, max_length=1)]
@@ -196,13 +189,13 @@ FactoidExactAnswer: TypeAlias = Annotated[
 ListExactAnswerItem: TypeAlias = Annotated[
     str,
     PlainValidator(_first_str_of_json_sequence),
-    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(
             Annotated[Sequence[str], Len(min_length=1)]
         ).json_schema(),  # type: ignore
         mode="validation",
     ),
+    PlainSerializer(_wrap_str_as_json_sequence),
     WithJsonSchema(
         TypeAdapter(
             Annotated[Sequence[str], Len(min_length=1, max_length=1)]
