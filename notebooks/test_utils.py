@@ -346,7 +346,8 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0613",
+            # model="gpt-3.5-turbo-0613",
+            model="gpt-4-0613",
             temperature=0,
             response_model=response_model,
             messages=messages,
@@ -390,7 +391,8 @@ def response_exact_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0613",
+            # model="gpt-3.5-turbo-0613",
+            model="gpt-4-0613",
             temperature=0,
             # response_model=response_model,
             messages=messages,
@@ -428,7 +430,8 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0613",
+            # model="gpt-3.5-turbo-0613",
+            model="gpt-4-0613",
             temperature=0,
             response_model=response_model,
             messages=messages,
@@ -464,7 +467,8 @@ def response_ideal_answer(query: str, q_type: str, text_chunks: str):
         ]
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo-0613",
+            # model="gpt-3.5-turbo-0613",
+            model="gpt-4-0613",
             temperature=0,
             # response_model=response_model,
             messages=messages,
