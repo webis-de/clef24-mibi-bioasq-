@@ -84,11 +84,13 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Re-rank the top-100 with the TAS-B bi-encoder (sebastian-hofstaetter/distilbert-dot-tas_b-b256-msmarco).
       - Re-rank the top-5 with the duoT5 cross-encoder (castorini/duot5-base-msmarco).
     - Exact answer:
+      - Add the question text to the prompt.
       - If snippets are given, add each snippet's text to the prompt context.
       - If a (previous) exact answer is given, add the answer to the prompt context.
       - If an ideal answer is given, add the answer to the prompt context.
       - Generate an exact answer with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature per question type, no prompt optimization)
     - Exact answer:
+      - Add the question text to the prompt.
       - If snippets are given, add each snippet's text to the prompt context.
       - If an exact answer is given, add the answer to the prompt context.
       - If a (previous) ideal answer is given, add the answer to the prompt context.
@@ -103,7 +105,11 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
     - `mibi_rag_4`:
       - Use the modules defined above in this order: exact answer, ideal answer, documents, snippets, exact answer, ideal answer (generate-then-retrieve-then-generate).
     - `mibi_rag_5`:
-      - Use the modules defined above incrementally, as determined by DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature, no prompt optimization)
+      - Use the modules defined above incrementally (each module must be run at least once, the same module cannot run consecutively).
+      - Add the question text and question type to the prompt.
+      - Add the history of previously run modules to the prompt (module and whether it was successful).
+      - Add a readiness flag to the prompt (whether the question is fully answered yet).
+      - Determine the next module to run with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature, custom suggestions, no prompt optimization)
   - Phase A+:
     - `mibi_rag_abstract`: TODO
     - `mibi_rag_snippet`: TODO
