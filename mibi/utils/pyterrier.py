@@ -235,7 +235,8 @@ class MaybeDePassager(Transformer):
         topics_or_res = concat([
             topics_or_res[~is_passage],
             self.de_passager.transform(
-                topics_or_res[is_passage].reset_index()),
+                topics_or_res[is_passage].reset_index()
+            ) if len(topics_or_res[is_passage]) else topics_or_res[is_passage],
         ])
 
         topics_or_res = topics_or_res.groupby("docno").first().reset_index()
@@ -274,7 +275,8 @@ class MaybePassager(Transformer):
         topics_or_res = concat([
             topics_or_res[is_passage],
             self.passager.transform(
-                topics_or_res[~is_passage].reset_index()),
+                topics_or_res[~is_passage].reset_index()
+            ) if len(topics_or_res[~is_passage]) else topics_or_res[~is_passage],
         ])
 
         topics_or_res = topics_or_res.groupby("docno").first().reset_index()
