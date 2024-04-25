@@ -1,6 +1,8 @@
 # 🏥 mibi-bioasq
 
-MiBi at BioASQ 2024
+MiBi at BioASQ 2024.
+
+Descriptions of our [submissions](submissions/) can be found [here](submissions/README.md).
 
 ## Installation
 
