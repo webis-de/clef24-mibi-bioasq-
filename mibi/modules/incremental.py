@@ -1,3 +1,4 @@
+from random import choice
 from typing import Literal, Sequence, TypeAlias, cast
 from warnings import warn
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
@@ -37,9 +38,10 @@ class NextTaskInput(BaseModel):
         description="How the question should be answered.")
     history: Sequence[HistoryItem] = Field(
         description="The history of tasks that were run from oldest to most recent.")
-    is_ready: bool = Field(
-        description="Whether the answer to the question is ready to be returned (i.e., by choosing 'none' as the next task).")
-
+    allowed_tasks: Sequence[Task] = Field(
+        description="Tasks that are allowed to be run next.")
+    undone_tasks: Sequence[Task] = Field(
+        description="Tasks that have not been run yet.")
 
 class NextTaskOutput(BaseModel):
     task: Task = Field(
@@ -77,6 +79,39 @@ class IncrementalAnswerModule(AnswerModule):
         self._exact_answer_module = exact_answer_module
         self._ideal_answer_module = ideal_answer_module
 
+    def _allowed_tasks(
+        self,
+        builder: AnswerBuilder,
+        history: Sequence[HistoryItem],
+    ) -> Sequence[Task]:
+        tasks: list[Task] = [
+            'retrieve documents',
+            'retrieve snippets',
+            'generate exact answer',
+            'generate summary answer',
+            'none',
+        ]
+        if len(history) > 0:
+            tasks.remove(history[-1].task)
+        if not builder.is_ready and "none" in tasks:
+            tasks.remove("none")
+        return tasks
+
+    def _undone_tasks(
+        self,
+        builder: AnswerBuilder,
+        history: Sequence[HistoryItem],
+    ) -> Sequence[Task]:
+        tasks: Sequence[Task] = [
+            task
+            for task in self._allowed_tasks(builder, history)
+            if not any(
+                item.task == task and item.successful
+                for item in history
+            )
+        ]
+        return tasks
+
     @rate_limit(Limiter([
         Rate(limit=1, interval=Duration.SECOND),
         Rate(limit=500, interval=Duration.HOUR),
@@ -91,7 +126,8 @@ class IncrementalAnswerModule(AnswerModule):
             question=builder.question.body,
             question_type=builder.question.type,
             history=history,
-            is_ready=builder.is_ready,
+            allowed_tasks=self._allowed_tasks(builder, history),
+            undone_tasks=self._undone_tasks(builder, history),
         )
         prediction: Prediction = self._next_task_predict.forward(
             input=input, **kwargs)
@@ -102,33 +138,37 @@ class IncrementalAnswerModule(AnswerModule):
         self,
         builder: AnswerBuilder,
         history: Sequence[HistoryItem],
-        **kwargs,
     ) -> HistoryItem | None:
         task = self._next_task(
             builder=builder,
             history=history,
         )
+
+        if len(history) > 5 and \
+                all(not item.successful for item in history[-5:]):
+            warn("Selecting a new task failed 5 times in a row.")
+            candidates = self._undone_tasks(builder, history)
+            if len(candidates) == 0:
+                print("Attempting to return answer.")
+                task = "none"
+            else:
+                print("Choosing random undone task.")
+                task = choice(candidates)
+
         if len(history) > 0 and task == history[-1].task:
             warn("Cannot run the same task twice in a row.")
             return HistoryItem(task=task, successful=False)
-        elif task == "retrieve documents":
-            print(
-                f"Making documents for question '{builder.question.body[:100]}'...")
+
+        if task == "retrieve documents":
             builder.make_documents()
             return HistoryItem(task=task, successful=True)
         elif task == "retrieve snippets":
-            print(
-                f"Making snippets for question '{builder.question.body[:100]}'...")
             builder.make_snippets()
             return HistoryItem(task=task, successful=True)
         elif task == "generate exact answer":
-            print(
-                f"Making exact for question '{builder.question.body[:100]}'...")
             builder.make_exact_answer()
             return HistoryItem(task=task, successful=True)
         elif task == "generate summary answer":
-            print(
-                f"Making ideal for question '{builder.question.body[:100]}'...")
             builder.make_ideal_answer()
             return HistoryItem(task=task, successful=True)
         elif task == "none":
@@ -156,7 +196,6 @@ class IncrementalAnswerModule(AnswerModule):
             history_item = self._run_next_task(
                 builder=builder,
                 history=history,
-                **kwargs,
             )
             if history_item is None:
                 break
