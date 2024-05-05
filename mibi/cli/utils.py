@@ -113,4 +113,4 @@ def test_llm(
     prompt: str,
 ) -> None:
     lm = init_language_model_clients(language_model_name)
-    print(lm(prompt))
+    echo(lm(prompt))

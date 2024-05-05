@@ -8,6 +8,7 @@ from mibi.cli.run import run
 from mibi.cli.index import index
 from mibi.cli.parse import parse
 from mibi.cli.utils import utils
+from mibi.cli.compile import compile
 
 
 def echo_version(
@@ -40,3 +41,4 @@ cli.add_command(run)
 cli.add_command(index)
 cli.add_command(parse)
 cli.add_command(utils)
+cli.add_command(compile)
