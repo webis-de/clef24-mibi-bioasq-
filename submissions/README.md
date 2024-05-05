@@ -111,14 +111,22 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Add a readiness flag to the prompt (whether the question is fully answered yet).
       - Determine the next module to run with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature, custom suggestions, no prompt optimization)
   - Phase A+:
-    - `mibi_rag_abstract`: TODO
-    - `mibi_rag_snippet`: TODO
-    - `mibi_rag_3`: TODO
-    - `mibi_rag_4`: TODO
-    - `mibi_rag_5`: TODO
+    - `mibi_rag_abstract`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_snippet`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_3`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_4`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_5`:
+      - Use the same modules in the same way as Phase A.
   - Phase B:
     - `mibi_rag_abstract`: TODO
     - `mibi_rag_snippet`: TODO
-    - `mibi_rag_3`: TODO
-    - `mibi_rag_4`: TODO
-    - `mibi_rag_5`: TODO
+    - `mibi_rag_3`:
+      - Use the same modules in the same way as `mibi_rag_snippet` of Phase A.
+    - `mibi_rag_4`:
+      - Use the same modules in the same way as `mibi_rag_4` of Phase A.
+    - `mibi_rag_5`:
+      - Use the same modules in the same way as `mibi_rag_5` of Phase A.
