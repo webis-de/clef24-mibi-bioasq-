@@ -62,9 +62,9 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Generate an "ideal" answer to the question the same as `mibi_rag_snippet` (Batch 1).
   - Phase B:
     - `mibi_rag_abstract`:
-      - Re-rank and generate answers the same as  `mibi_rag_abstract` (Batch 1).
+      - Re-rank and generate answers the same as `mibi_rag_abstract` (Batch 1).
     - `mibi_rag_snippet`:
-      - Generate answers the same as  `mibi_rag_snippet` (Batch 1).
+      - Generate answers the same as `mibi_rag_snippet` (Batch 1).
 - Batch 3:
   - Modules:
     - Documents:
@@ -130,3 +130,37 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
       - Use the same modules in the same way as `mibi_rag_4` of Phase A.
     - `mibi_rag_5`:
       - Use the same modules in the same way as `mibi_rag_5` of Phase A.
+- Batch 4:
+  - Phase A:
+    - `mibi_rag_abstract`:
+      - Use the same modules in the same way as Batch 3.
+    - `mibi_rag_snippet`:
+      - Use the same modules in the same way as Batch 3.
+    - `mibi_rag_3`:
+      - Use the same modules in the same way as Batch 3.
+    - `mibi_rag_4`:
+      - Use the same modules in the same way as Batch 3.
+    - `mibi_rag_5`:
+      - Use the same modules in the same way as Batch 3.
+  - Phase A+:
+    - `mibi_rag_abstract`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_snippet`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_3`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_4`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_5`:
+      - Use the same modules in the same way as Phase A.
+  - Phase B:
+    - `mibi_rag_abstract`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_snippet`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_3`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_4`:
+      - Use the same modules in the same way as Phase A.
+    - `mibi_rag_5`:
+      - Use the same modules in the same way as Phase A.
