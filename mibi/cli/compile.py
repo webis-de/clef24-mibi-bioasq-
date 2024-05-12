@@ -1,10 +1,10 @@
-from math import nan
 from pathlib import Path
-from typing import Collection, Literal
+from typing import Literal, cast
 
 from click import Choice, IntRange, echo, option, Path as PathType, argument, command
 
-from mibi.model import NOT_AVAILABLE, Question
+from mibi.metrics import DefaultMeasure
+from mibi.model import Question
 
 
 @command()
@@ -94,6 +94,16 @@ from mibi.model import NOT_AVAILABLE, Question
     type=IntRange(min=0),
 )
 @option(
+    "-o", "--optimizer", "optimizer_type",
+    type=Choice([
+        "bootstrap-few-shot", "bfs",
+        "bootstrap-few-shot-with-random-search", "bfsrs",
+        "mipro",
+        "copro",
+    ]),
+    required=True,
+)
+@option(
     "--elasticsearch-url",
     type=str,
     envvar="ELASTICSEARCH_URL",
@@ -142,18 +152,37 @@ def compile(
     ],
     language_model_name: str,
     first_questions: int | None,
+    optimizer_type: Literal[
+        "bootstrap-few-shot", "bfs",
+        "bootstrap-few-shot-with-random-search", "bfsrs",
+        "copro",
+        "mipro",
+    ],
     elasticsearch_url: str | None,
     elasticsearch_username: str | None,
     elasticsearch_password: str | None,
     elasticsearch_index: str | None,
 ) -> None:
-    from statistics import mean, harmonic_mean
     from dspy import Module, Example
-    from dspy.teleprompt import BootstrapFewShot, BootstrapFewShotWithRandomSearch, MIPRO
-    from rouge_score.rouge_scorer import RougeScorer
-    from rouge_score.scoring import Score
+    from dspy.teleprompt import Teleprompter, BootstrapFewShot, BootstrapFewShotWithRandomSearch, MIPRO, COPRO
     from mibi.model import PartiallyAnsweredQuestionData, Answer
+    from mibi.modules import JsonAnswerModule
     from mibi.modules.build import build_answer_module
+
+    answer_module = build_answer_module(
+        documents_module_type=documents_module_type,
+        snippets_module_type=snippets_module_type,
+        exact_answer_module_type=exact_answer_module_type,
+        ideal_answer_module_type=ideal_answer_module_type,
+        answer_module_type=answer_module_type,
+        language_model_name=language_model_name,
+        elasticsearch_url=elasticsearch_url,
+        elasticsearch_username=elasticsearch_username,
+        elasticsearch_password=elasticsearch_password,
+        elasticsearch_index=elasticsearch_index,
+    )
+
+    wrapped_answer_module = JsonAnswerModule(answer_module)
 
     with training_data_path.open("rb") as input_file:
         data = PartiallyAnsweredQuestionData.model_validate_json(
@@ -165,13 +194,13 @@ def compile(
                 id=question.id,
                 type=question.type,
                 body=question.body,
-            ),
+            ).model_dump(mode="json"),
             "answer": Answer(
                 documents=question.documents,
                 snippets=question.snippets,
                 exact_answer=question.exact_answer,
                 ideal_answer=question.ideal_answer,
-            ),
+            ).model_dump(mode="json"),
         }).with_inputs("question")
         for question in data.questions
         if (
@@ -186,142 +215,91 @@ def compile(
     if first_questions is not None:
         training_data = training_data[:first_questions]
 
-    answer_module = build_answer_module(
-        documents_module_type=documents_module_type,
-        snippets_module_type=snippets_module_type,
-        exact_answer_module_type=exact_answer_module_type,
-        ideal_answer_module_type=ideal_answer_module_type,
-        answer_module_type=answer_module_type,
-        language_model_name=language_model_name,
-        elasticsearch_url=elasticsearch_url,
-        elasticsearch_username=elasticsearch_username,
-        elasticsearch_password=elasticsearch_password,
-        elasticsearch_index=elasticsearch_index,
-    )
-    if not isinstance(answer_module, Module):
-        raise RuntimeError("Can only optimize DSPy modules.")
-
-    rouge_scorer = RougeScorer(
-        rouge_types=["rouge1", "rougeL"],
-        use_stemmer=True,
-        tokenizer=None,  # TODO: Default?
-    )
+    measure = DefaultMeasure()
 
     def metric(example: Example, predicted_answer: Answer, _trace=None) -> float:
-        question: Question = example["question"]
-        ground_truth_answer: Answer = example["answer"]
-
-        exact_answer_score: float
-        if question.type == "yesno":
-            if ground_truth_answer.exact_answer not in ("yes", "no") or predicted_answer.exact_answer not in ("yes", "no"):
-                raise RuntimeError(
-                    "Expected exact answer to be either 'yes' or 'no'.")
-            exact_answer_score = 1 if ground_truth_answer.exact_answer == predicted_answer.exact_answer else 0
-        elif question.type == "factoid":
-            if not isinstance(ground_truth_answer.exact_answer, str) or not isinstance(predicted_answer.exact_answer, str):
-                raise RuntimeError("Expected exact answer to be a string.")
-            # TODO: Stemming?
-            exact_answer_score = 1 if ground_truth_answer.exact_answer == predicted_answer.exact_answer else 0
-        elif question.type == "list":
-            if not isinstance(ground_truth_answer.exact_answer, Collection) or not isinstance(predicted_answer.exact_answer, Collection):
-                raise RuntimeError("Expected exact answer to be a collection.")
-            # TODO: Stemming?
-            predicted_exact_answer_set: set[str] = set(
-                predicted_answer.exact_answer)
-            ground_truth_exact_answer_set: set[str] = set(
-                ground_truth_answer.exact_answer)
-            correct_exact_answer_set = predicted_exact_answer_set & ground_truth_exact_answer_set
-            exact_answer_precision = (
-                (
-                    len(correct_exact_answer_set) /
-                    len(predicted_exact_answer_set)
-                )
-                if len(predicted_exact_answer_set) > 0 else 0
-            )
-            exact_answer_recall = (
-                (
-                    len(correct_exact_answer_set) /
-                    len(ground_truth_exact_answer_set)
-                )
-                if len(ground_truth_exact_answer_set) > 0 else 0
-            )
-            exact_answer_f1 = (
-                (
-                    2 * (exact_answer_precision * exact_answer_recall) /
-                    (exact_answer_precision + exact_answer_recall)
-                )
-                if exact_answer_precision + exact_answer_recall > 0 else 0
-            )
-            exact_answer_score = exact_answer_f1
-        elif question.type == "summary":
-            if ground_truth_answer.exact_answer != NOT_AVAILABLE or predicted_answer.exact_answer != NOT_AVAILABLE:
-                raise RuntimeError("Expected exact answer to be empty.")
-            exact_answer_score = nan
-        else:
-            raise RuntimeError("Unknown exact answer type.")
-        print(f"Exact answer score ({question.type}): {exact_answer_score:.2f} (GT: {ground_truth_answer.exact_answer}, P: {predicted_answer.exact_answer})")
-
-        ideal_answer_rouge_scores = rouge_scorer.score(
-            target=ground_truth_answer.ideal_answer,
-            prediction=predicted_answer.ideal_answer,
+        question: Question = Question.model_validate(example["question"])
+        ground_truth_answer: Answer = Answer.model_validate(example["answer"])
+        return measure.metric(
+            question=question,
+            ground_truth_answer=ground_truth_answer,
+            predicted_answer=predicted_answer,
         )
-        ideal_answer_rouge_1: Score = ideal_answer_rouge_scores["rouge1"]
-        ideal_answer_rouge_l: Score = ideal_answer_rouge_scores["rougeL"]
-        ideal_answer_score = harmonic_mean((
-            ideal_answer_rouge_1.fmeasure,
-            ideal_answer_rouge_l.fmeasure
-        ))
-        print(f"Ideal answer score: {ideal_answer_score:.2f} (GT: {ground_truth_answer.ideal_answer}, P: {predicted_answer.ideal_answer})")
-
-        answer_score: float
-        if question.type == "summary":
-            answer_score = ideal_answer_score
-        else:
-            answer_score = mean((
-                exact_answer_score,
-                ideal_answer_score,
-            ))
-        print(f"Answer score: {answer_score:.2f}")
-
-        return answer_score
 
     print("Create optimizer.")
-    optimizer = BootstrapFewShot(
-        metric=metric,
-        max_bootstrapped_demos=3,
-        max_labeled_demos=3,
-        max_errors=0,  # For debugging.
-    )
-    optimizer = BootstrapFewShotWithRandomSearch(
-        metric=metric,
-        max_bootstrapped_demos=3,
-        max_labeled_demos=3,
-        num_candidate_programs=10,
-        num_threads=1,
-    )
-    # optimizer = MIPRO(
-    #     metric=metric,
-    #     num_candidates=10,
-    #     init_temperature=1.0,
-    #     track_stats=True,
-    #     verbose=True,
-    #     view_data_batch_size=10,
-    # )
+    optimizer: Teleprompter
+    if optimizer_type in ("bootstrap-few-shot", "bfs"):
+        optimizer = BootstrapFewShot(
+            metric=metric,
+            metric_threshold=0.5,
+            max_bootstrapped_demos=4,
+            max_labeled_demos=16,
+            max_rounds=1,
+            max_errors=5,
+        )
+    elif optimizer_type in ("bootstrap-few-shot-with-random-search", "bfsrs"):
+        optimizer = BootstrapFewShotWithRandomSearch(
+            metric=metric,
+            max_bootstrapped_demos=4,
+            max_labeled_demos=16,
+            max_rounds=1,
+            num_candidate_programs=16,
+            num_threads=1,
+            max_errors=10,
+        )
+    elif optimizer_type == "mipro":
+        optimizer = MIPRO(
+            metric=metric,
+            num_candidates=10,
+            init_temperature=1.0,
+            track_stats=True,
+            verbose=True,
+            view_data_batch_size=3,
+        )
+    elif optimizer_type == "copro":
+        optimizer = COPRO(
+            metric=metric,
+            breadth=10,
+            depth=3,
+            init_temperature=1.0,
+            track_stats=True,
+            verbose=True,
+        )
+    else:
+        raise ValueError("Unknown optimizer type.")
 
     print("Compile LLM program.")
-    optimized_answer_module: Module = optimizer.compile(
-        student=answer_module,
-        trainset=training_data,
-        # num_trials=3,  # TODO
-        # max_bootstrapped_demos=3,  # TODO
-        # max_labeled_demos=3,  # TODO
-        # eval_kwargs=dict(
-        #     display_progress=True,
-        #     display_table=True,
-        #     display=True,
-        #     max_errors=1,
-        # ),
-    )  # type: ignore
+    optimized_answer_module: Module
+    if isinstance(optimizer, MIPRO):
+        optimized_answer_module = cast(Module, optimizer.compile(
+            student=wrapped_answer_module,
+            trainset=training_data,
+            num_trials=3,
+            max_bootstrapped_demos=3,
+            max_labeled_demos=3,
+            eval_kwargs=dict(
+                display_progress=True,
+                display_table=True,
+                display=True,
+            ),
+        ))
+        if optimized_answer_module is None:
+            raise RuntimeError("Could not opitimze answer module.")
+    elif isinstance(optimizer, COPRO):
+        optimized_answer_module = cast(Module, optimizer.compile(
+            student=wrapped_answer_module,
+            trainset=training_data,
+            eval_kwargs=dict(
+                display_progress=True,
+                display_table=True,
+                display=True,
+            ),
+        ))
+    else:
+        optimized_answer_module = optimizer.compile(
+            student=wrapped_answer_module,
+            trainset=training_data,
+        )
 
     print(f"Saving LLM programm parameters to: {model_path}")
     optimized_answer_module.save(model_path)
