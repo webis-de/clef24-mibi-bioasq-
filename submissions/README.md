@@ -122,8 +122,10 @@ In this file, we briefly describe what approaches we submitted to BioASQ:
     - `mibi_rag_5`:
       - Use the same modules in the same way as Phase A.
   - Phase B:
-    - `mibi_rag_abstract`: Same as batch 2, but the model is GPT-4
-    - `mibi_rag_snippet`: Same as batch 2, but the model is GPT-4
+    - `mibi_rag_abstract`:
+      - The same as for batch 2, but the model is GPT-4.
+    - `mibi_rag_snippet`:
+      - The same as for batch 2, but the model is GPT-4.
     - `mibi_rag_3`:
       - Use the same modules in the same way as `mibi_rag_snippet` of Phase A.
     - `mibi_rag_4`:
