@@ -135,12 +135,21 @@ Snippets: TypeAlias = Annotated[
 ]
 
 
-def _first_str_of_json_sequence(
-        value: Annotated[Sequence[str], Len(min_length=1)] | str) -> str:
+_StrOrNonEmptyStrSequence: TypeAlias = Annotated[
+    Sequence[str], 
+    Len(min_length=1),
+    ] | str
+
+_str_or_non_empty_str_sequence_adapter = TypeAdapter(_StrOrNonEmptyStrSequence)
+
+def _first_str_of_json_sequence(value: _StrOrNonEmptyStrSequence) -> str:
+    _str_or_non_empty_str_sequence_adapter.validate_python(value)
     if isinstance(value, str):
         return value
-    else:
+    elif isinstance(value, Sequence):
         return value[0]
+    else:
+        raise RuntimeError("Unexpected type.")
 
 
 def _wrap_str_as_json_sequence(
