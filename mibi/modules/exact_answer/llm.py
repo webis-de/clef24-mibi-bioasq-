@@ -1,9 +1,10 @@
 from typing import Annotated, Sequence, TypeAlias, cast
+from typing_extensions import TypedDict
 from warnings import catch_warnings, simplefilter, warn
 
 from annotated_types import Len
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, Field
 from spacy import load as spacy_load
 from spacy.language import Language
 
@@ -14,7 +15,7 @@ from mibi.modules.helpers import AutoExactAnswerModule
 Context: TypeAlias = list[str]
 
 
-class YesNoInput(BaseModel):
+class YesNoInput(TypedDict):
     question: Annotated[
         str,
         Field(
@@ -29,7 +30,7 @@ class YesNoInput(BaseModel):
     ]
 
 
-class YesNoOutput(BaseModel):
+class YesNoOutput(TypedDict):
     answer: Annotated[
         YesNoExactAnswer,
         Field(
@@ -51,7 +52,7 @@ class YesNoPredict(Signature):
     ]
 
 
-class FactoidInput(BaseModel):
+class FactoidInput(TypedDict):
     question: Annotated[
         str,
         Field(
@@ -85,7 +86,7 @@ _ShortFactoidExactAnswer: TypeAlias = Annotated[
 ]
 
 
-class FactoidOutput(BaseModel):
+class FactoidOutput(TypedDict):
     answer: Annotated[
         _ShortFactoidExactAnswer,
         Field(
@@ -107,7 +108,7 @@ class FactoidPredict(Signature):
     ]
 
 
-class ListInput(BaseModel):
+class ListInput(TypedDict):
     question: Annotated[
         str,
         Field(
@@ -133,7 +134,7 @@ _ShortListExactAnswer: TypeAlias = Annotated[
 ]
 
 
-class ListOutput(BaseModel):
+class ListOutput(TypedDict):
     answer: Annotated[
         _ShortListExactAnswer,
         Field(
@@ -156,9 +157,23 @@ class ListPredict(Signature):
 
 
 class LlmExactAnswerModule(AutoExactAnswerModule):
-    _yes_no_predict = TypedPredictor(signature=YesNoPredict, max_retries=3)
-    _factoid_predict = TypedPredictor(signature=FactoidPredict, max_retries=5)
-    _list_predict = TypedPredictor(signature=ListPredict, max_retries=10)
+    _yes_no_predict: TypedPredictor
+    _factoid_predict: TypedPredictor
+    _list_predict: TypedPredictor
+
+    def __init__(self):
+        self._yes_no_predict = TypedPredictor(
+            signature=YesNoPredict,
+            max_retries=3,
+        )
+        self._factoid_predict = TypedPredictor(
+            signature=FactoidPredict,
+            max_retries=5,
+        )
+        self._list_predict = TypedPredictor(
+            signature=ListPredict,
+            max_retries=10,
+        )
 
     def _context(
             self,
@@ -199,7 +214,7 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             warn("Falling back to negative answer.")
             return "no"
         output = cast(YesNoOutput, prediction.output)
-        return output.answer
+        return output["answer"]
 
     def forward_factoid(
             self,
@@ -219,7 +234,7 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             return ""
         output = cast(FactoidOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions (e.g., not too long)?
-        return output.answer
+        return output["answer"]
 
     def forward_list(
             self,
@@ -239,4 +254,4 @@ class LlmExactAnswerModule(AutoExactAnswerModule):
             return []
         output = cast(ListOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions (e.g., not too long)?
-        return output.answer
+        return output["answer"]

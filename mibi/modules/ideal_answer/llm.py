@@ -1,7 +1,8 @@
-from typing import TypeAlias, cast
+from typing import Annotated, TypeAlias, cast
+from typing_extensions import TypedDict
 from warnings import warn
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from mibi.model import PartiallyAnsweredQuestion, Question, PartialAnswer, IdealAnswer
 from mibi.modules import IdealAnswerModule
@@ -10,16 +11,28 @@ from mibi.modules import IdealAnswerModule
 Context: TypeAlias = list[str]
 
 
-class IdealInput(BaseModel):
-    question: str = Field(
-        description="The question that should be answered.")
-    context: Context = Field(
-        description="Context that should be used to answer the question.")
+class IdealInput(TypedDict):
+    question: Annotated[
+        str,
+        Field(
+            description="The question that should be answered.",
+        ),
+    ]
+    context: Annotated[
+        Context,
+        Field(
+            description="Context that should be used to answer the question.",
+        ),
+    ]
 
 
-class IdealOutput(BaseModel):
-    answer: str = Field(
-        description="The long-form answer to the question consisting of 1 to 3 sentence that also contains a short explanation. The answer should be grammatically correct, concise, and precise.")
+class IdealOutput(TypedDict):
+    answer: Annotated[
+        str,
+        Field(
+            description="The long-form answer to the question consisting of 1 to 3 sentence that also contains a short explanation. The answer should be grammatically correct, concise, and precise.",
+        ),
+    ]
 
 
 class IdealPredict(Signature):
@@ -29,7 +42,13 @@ class IdealPredict(Signature):
 
 
 class LlmIdealAnswerModule(IdealAnswerModule):
-    _ideal_predict = TypedPredictor(signature=IdealPredict)
+    _ideal_predict: TypedPredictor
+
+    def __init__(self) -> None:
+        self._ideal_predict = TypedPredictor(
+            signature=IdealPredict,
+            max_retries=3,
+        )
 
     def _context(
         self,
@@ -71,4 +90,4 @@ class LlmIdealAnswerModule(IdealAnswerModule):
             return ""
         output = cast(IdealOutput, prediction.output)
         # TODO: Additional validations using DSPy assertions?
-        return output.answer
+        return output["answer"]

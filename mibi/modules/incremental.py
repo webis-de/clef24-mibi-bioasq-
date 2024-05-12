@@ -1,8 +1,9 @@
 from random import choice
-from typing import Literal, Sequence, TypeAlias, cast
+from typing import Annotated, Literal, Sequence, TypeAlias, cast
+from typing_extensions import TypedDict
 from warnings import warn
 from dspy import Signature, Prediction, InputField, OutputField, TypedPredictor
-from pydantic import BaseModel, Field
+from pydantic import Field
 from pyrate_limiter.limiter import Limiter
 from pyrate_limiter import Rate, Duration
 from mibi.builder import AnswerBuilder
@@ -26,26 +27,61 @@ YesNo: TypeAlias = Literal[
 ]
 
 
-class HistoryItem(BaseModel):
-    task: Task = Field(description="The task that was run.")
-    successful: bool = Field(
-        description="Whether the task was run successful.")
+class HistoryItem(TypedDict):
+    task: Annotated[
+        Task,
+        Field(
+            description="The task that was run.",
+        ),
+    ]
+    successful: Annotated[
+        bool,
+        Field(
+            description="Whether the task was run successful.",
+        ),
+    ]
 
 
-class NextTaskInput(BaseModel):
-    question: str = Field(description="The question that should be answered.")
-    question_type: QuestionType = Field(
-        description="How the question should be answered.")
-    history: Sequence[HistoryItem] = Field(
-        description="The history of tasks that were run from oldest to most recent.")
-    allowed_tasks: Sequence[Task] = Field(
-        description="Tasks that are allowed to be run next.")
-    undone_tasks: Sequence[Task] = Field(
-        description="Tasks that have not been run yet.")
+class NextTaskInput(TypedDict):
+    question: Annotated[
+        str,
+        Field(
+            description="The question that should be answered.",
+        ),
+    ]
+    question_type: Annotated[
+        QuestionType,
+        Field(
+            description="How the question should be answered.",
+        ),
+    ]
+    history: Annotated[
+        Sequence[HistoryItem],
+        Field(
+            description="The history of tasks that were run from oldest to most recent.",
+        ),
+    ]
+    allowed_tasks: Annotated[
+        Sequence[Task],
+        Field(
+            description="Tasks that are allowed to be run next.",
+        ),
+    ]
+    undone_tasks: Annotated[
+        Sequence[Task],
+        Field(
+            description="Tasks that have not been run yet.",
+        ),
+    ]
 
-class NextTaskOutput(BaseModel):
-    task: Task = Field(
-        description="The next task that should be run in order to answer the question.")
+
+class NextTaskOutput(TypedDict):
+    task: Annotated[
+        Task,
+        Field(
+            description="The next task that should be run in order to answer the question.",
+        ),
+    ]
 
 
 class NextTaskPredict(Signature):
@@ -65,7 +101,7 @@ class IncrementalAnswerModule(AnswerModule):
     _snippets_module: SnippetsModule
     _exact_answer_module: ExactAnswerModule
     _ideal_answer_module: IdealAnswerModule
-    _next_task_predict = TypedPredictor(signature=NextTaskPredict)
+    _next_task_predict: TypedPredictor
 
     def __init__(
         self,
@@ -78,6 +114,10 @@ class IncrementalAnswerModule(AnswerModule):
         self._snippets_module = snippets_module
         self._exact_answer_module = exact_answer_module
         self._ideal_answer_module = ideal_answer_module
+        self._next_task_predict = TypedPredictor(
+            signature=NextTaskPredict,
+            max_retries=3,
+        )
 
     def _allowed_tasks(
         self,
@@ -92,7 +132,7 @@ class IncrementalAnswerModule(AnswerModule):
             'none',
         ]
         if len(history) > 0:
-            tasks.remove(history[-1].task)
+            tasks.remove(history[-1]["task"])
         if not builder.is_ready and "none" in tasks:
             tasks.remove("none")
         return tasks
@@ -106,7 +146,7 @@ class IncrementalAnswerModule(AnswerModule):
             task
             for task in self._allowed_tasks(builder, history)
             if not any(
-                item.task == task and item.successful
+                item["task"] == task and item["successful"]
                 for item in history
             )
         ]
@@ -132,7 +172,7 @@ class IncrementalAnswerModule(AnswerModule):
         prediction: Prediction = self._next_task_predict.forward(
             input=input, **kwargs)
         output = cast(NextTaskOutput, prediction.output)
-        return output.task
+        return output["task"]
 
     def _run_next_task(
         self,
@@ -145,7 +185,7 @@ class IncrementalAnswerModule(AnswerModule):
         )
 
         if len(history) > 5 and \
-                all(not item.successful for item in history[-5:]):
+                all(not item["successful"] for item in history[-5:]):
             warn("Selecting a new task failed 5 times in a row.")
             candidates = self._undone_tasks(builder, history)
             if len(candidates) == 0:
@@ -155,7 +195,7 @@ class IncrementalAnswerModule(AnswerModule):
                 print("Choosing random undone task.")
                 task = choice(candidates)
 
-        if len(history) > 0 and task == history[-1].task:
+        if len(history) > 0 and task == history[-1]["task"]:
             warn("Cannot run the same task twice in a row.")
             return HistoryItem(task=task, successful=False)
 
@@ -192,7 +232,7 @@ class IncrementalAnswerModule(AnswerModule):
         history: list[HistoryItem] = []
         while not (builder.is_ready and
                    len(history) > 0 and
-                   history[-1].task == "none"):
+                   history[-1]["task"] == "none"):
             history_item = self._run_next_task(
                 builder=builder,
                 history=history,
