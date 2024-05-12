@@ -1,6 +1,7 @@
 from abc import ABC, ABCMeta, abstractmethod
 
 from dspy import Module, ProgramMeta
+from pydantic import JsonValue
 
 from mibi.model import Question, PartialAnswer, Documents, Snippets, ExactAnswer, IdealAnswer, Answer
 
@@ -99,3 +100,16 @@ class AnswerModule(ABCModule):
         question: Question,
     ) -> Answer:
         return self.forward(question)
+
+
+class JsonAnswerModule(Module):
+    answer_module: AnswerModule
+
+    def __init__(self, answer_module: AnswerModule) -> None:
+        self.answer_module = answer_module
+
+    def forward(
+        self,
+        question: JsonValue,
+    ) -> Answer:
+        return self.answer_module.forward(Question.model_validate(question))
