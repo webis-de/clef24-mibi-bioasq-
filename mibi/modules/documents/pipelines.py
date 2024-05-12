@@ -7,6 +7,7 @@ from pandas import DataFrame, Series
 from pyterrier.transformer import Transformer
 from pyterrier.text import MaxPassage
 from pyterrier.apply import query
+from pyterrier_caching import DbmRetrieverCache
 from spacy import load as spacy_load
 from spacy.language import Language
 
@@ -171,6 +172,12 @@ class DocumentsPipeline(Transformer):
 
         # Cut off at 10 documents as per BioASQ requirements.
         pipeline = pipeline % 10  # type: ignore
+
+        # Cache results.
+        # pipeline = DbmRetrieverCache(
+        #     path=PROJECT_DIR / "data" / "cache" / "pyterrier"/"documents",
+        #     retriever=pipeline,
+        # )
 
         return pipeline
 
