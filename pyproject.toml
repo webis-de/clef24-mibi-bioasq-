@@ -42,6 +42,7 @@ dependencies = [
     "pubmed-parser~=0.3.1",
     "pydantic~=2.5",
     "pyrate-limiter~=3.2",
+    "pyterrier-caching @ git+https://github.com/seanmacavaney/pyterrier-caching.git@464c983b2785bdf14da0078cb5b6c8fa41336b73",
     "pyterrier-dr @ git+https://github.com/terrierteam/pyterrier_dr.git@c620231ebc5dba55486302aaee92aa9033a3c69e",
     "pyterrier-t5 @ git+https://github.com/terrierteam/pyterrier_t5.git@63756ebc2968ab03f46a61f0b391e27873226d75",
     "python-dotenv~=1.0",
