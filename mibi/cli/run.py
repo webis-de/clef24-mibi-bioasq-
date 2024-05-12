@@ -110,6 +110,19 @@ from click import Choice, IntRange, echo, option, Path as PathType, argument, co
     type=str,
     envvar="ELASTICSEARCH_INDEX_PUBMED",
 )
+@option(
+    "-m", "--model-path", "model_path",
+    type=PathType(
+        path_type=Path,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        writable=False,
+        resolve_path=True,
+        allow_dash=False
+    ),
+)
 def run(
     input_path: Path,
     output_path: Path,
@@ -143,8 +156,11 @@ def run(
     elasticsearch_username: str | None,
     elasticsearch_password: str | None,
     elasticsearch_index: str | None,
+    model_path: Path | None
 ) -> None:
-    from mibi.model import AnsweredQuestion, AnsweredQuestionData, PartiallyAnsweredQuestionData
+    from typing import Iterable
+    from mibi.model import AnsweredQuestion, AnsweredQuestionData, PartiallyAnsweredQuestionData, PartiallyAnsweredQuestion, Answer
+    from mibi.modules import JsonAnswerModule
     from mibi.modules.build import build_answer_module
 
     with input_path.open("rb") as input_file:
@@ -169,10 +185,23 @@ def run(
     if first_questions is not None:
         questions = questions[:first_questions]
 
-    question_answer_pairs = (
-        (question, answer_module.forward(question))
-        for question in questions
-    )
+    question_answer_pairs: Iterable[tuple[PartiallyAnsweredQuestion, Answer]]
+
+    if model_path is not None:
+        json_answer_module = JsonAnswerModule(answer_module)
+        print(f"Loading LLM programm parameters from: {model_path}")
+        json_answer_module.load(model_path)
+        question_answer_pairs = (
+            (question, json_answer_module.forward(
+                question.model_dump(mode="json")
+            ))
+            for question in questions
+        )
+    else:
+        question_answer_pairs = (
+            (question, answer_module.forward(question))
+            for question in questions
+        )
 
     answered_questions = [
         AnsweredQuestion(
