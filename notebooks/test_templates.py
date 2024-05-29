@@ -23,7 +23,6 @@ Title sentences: [empty list] (no sentences or phrases that directly answer the 
 Abstract sentences: ["The prevalence of MAC lung infection in two inner city hospitals was four times higher than that of TB.", "Most patients with combined infection were clinically consistent with MTB and responded to anti MTB treatment alone."]
 ******************
 
-
 Here is the data:
 
 [Title]: {title} 
