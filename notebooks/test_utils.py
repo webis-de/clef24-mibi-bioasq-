@@ -252,7 +252,6 @@ def rerank_biencoder(question, retrieved):
 
 def rerank_crossencoder(question, retrieved):
     encoder = CrossEncoder("cross-encoder/msmarco-MiniLM-L6-en-de-v1", max_length=512)
-    
     # encoder = CrossEncoder("sentence-transformers/all-MiniLM-L6-v2")
     # encoder = CrossEncoder('cross-encoder/msmarco-MiniLM-L12-en-de-v1', max_length=512)
     # encoder = CrossEncoder("tavakolih/all-MiniLM-L6-v2-pubmed-full")
