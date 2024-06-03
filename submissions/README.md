@@ -16,12 +16,9 @@ The following list briefly describes which approaches were submitted to BioASQ i
       - Cut-off at top-25.
       - Re-rank with bi-encoder (sentence-transformers/all-mpnet-base-v2, original question, only abstract).
       - Cut-off at top-10.
-      - **How are snippets generated?**
-      - **Why/how are answers generated?**
     - `mibi_rag_snippet`:
       - Retrieve documents the same as `mibi_rag_abstract`.
       - Generate snippets with GPT-3.5 (turbo, **temperature?**, **max tokens?**) chain-of-thought few-shot prompting ([prompt](notebooks/test_templates.py)).
-      - **Why/how are answers generated?**
   - Phase A+:
     - `mibi_rag_abstract`:
       - Retrieve documents the same as `mibi_rag_abstract` (Phase A).
@@ -93,7 +90,7 @@ The following list briefly describes which approaches were submitted to BioASQ i
       - If a (previous) exact answer is given, add the answer to the prompt context.
       - If an ideal answer is given, add the answer to the prompt context.
       - Generate an exact answer with DSPy's typed predictions (Mixtral-8x7B-Instruct-v0.1 from Blablador API, custom signature per question type, no prompt optimization)
-    - Exact answer:
+    - Ideal answer:
       - Add the question text to the prompt.
       - If snippets are given, add each snippet's text to the prompt context.
       - If an exact answer is given, add the answer to the prompt context.
