@@ -58,7 +58,7 @@ If you have found an important feature missing from our tool, please suggest it 
 
 If you are unsure about anything, post an [issue](https://github.com/webis-de/archive-query-log/issues/new) or contact us:
 
-- [heinrich.reimer@uni-jena.de](mailto:heinrich.reimer@uni-jena.de)
+- [heinrich.merker@uni-jena.de](mailto:heinrich.merker@uni-jena.de)
 - [alexander.bondarenko@uni-jena.de](mailto:alexander.bondarenko@uni-jena.de)
 - [adrian.viehweger@medizin.uni-leipzig.de](mailto:adrian.viehweger@medizin.uni-leipzig.de)
 - [matthias.hagen@uni-jena.de](mailto:matthias.hagen@uni-jena.de)
