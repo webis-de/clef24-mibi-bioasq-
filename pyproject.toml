@@ -28,7 +28,7 @@ dependencies = [
     "elasticsearch7-dsl~=7.3",
     "en_core_sci_sm @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
     "importlib-metadata~=8.0",
-    "instructor~=0.6.2",
+    "instructor~=1.3.5",
     "joblib~=1.3",
     "jupyter~=1.0",
     "llama-index-llms-ollama~=0.1.2",
