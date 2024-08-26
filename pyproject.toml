@@ -46,7 +46,7 @@ dependencies = [
     "pyterrier-dr @ git+https://github.com/terrierteam/pyterrier_dr.git@c620231ebc5dba55486302aaee92aa9033a3c69e",
     "pyterrier-t5 @ git+https://github.com/terrierteam/pyterrier_t5.git@63756ebc2968ab03f46a61f0b391e27873226d75",
     "python-dotenv~=1.0",
-    "python-terrier~=0.10.0",
+    "python-terrier~=0.11.0",
     "rank_bm25~=0.2.2",
     "rouge-score~=0.1.2",
     "requests~=2.31",
