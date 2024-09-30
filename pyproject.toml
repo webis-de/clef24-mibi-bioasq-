@@ -23,7 +23,7 @@ dependencies = [
     "annotated-types~=0.7.0",
     "beautifulsoup4~=4.12",
     "click~=8.1",
-    "dspy-ai~=2.4.5",
+    "dspy-ai~=2.5.2",
     "elasticsearch7~=7.17",
     "elasticsearch7-dsl~=7.3",
     "en_core_sci_sm @ https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz",
