@@ -1,7 +1,7 @@
 [project]
 name = "mibi-bioasq"
 authors = [
-    {name = "Jan Heinrich Reimer", email = "heinrich.reimer@uni-jena.de"},
+    {name = "Jan Heinrich Merker", email = "heinrich.merker@uni-jena.de"},
     {name = "Alexander Bondarenko", email = "alexander.bondarenko@uni-jena.de"},
     {name = "Adrian Viehweger", email = "adrian.viehweger@medizin.uni-leipzig.de"},
     {name = "Matthias Hagen", email = "matthias.hagen@uni-jena.de"},
